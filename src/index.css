@@ -1,0 +1,103 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --color-surface: 255 255 255;
+  --color-surface-secondary: 248 250 252;
+  --color-surface-tertiary: 241 245 249;
+  --color-surface-hover: 226 232 240;
+  --color-border: 226 232 240;
+  --color-border-subtle: 241 245 249;
+  --color-text-primary: 15 23 42;
+  --color-text-secondary: 71 85 105;
+  --color-text-tertiary: 148 163 184;
+  --color-text-muted: 203 213 225;
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 64px;
+  --topbar-height: 56px;
+  --tooltip-bg: #ffffff;
+  --tooltip-border: #e2e8f0;
+  --tooltip-text: #1e293b;
+}
+
+.dark {
+  --color-surface: 15 23 42;
+  --color-surface-secondary: 30 41 59;
+  --color-surface-tertiary: 51 65 85;
+  --color-surface-hover: 71 85 105;
+  --color-border: 51 65 85;
+  --color-border-subtle: 30 41 59;
+  --color-text-primary: 241 245 249;
+  --color-text-secondary: 203 213 225;
+  --color-text-tertiary: 148 163 184;
+  --color-text-muted: 100 116 139;
+  --tooltip-bg: #1e293b;
+  --tooltip-border: #334155;
+  --tooltip-text: #e2e8f0;
+}
+
+body {
+  margin: 0;
+  font-family:
+    "Inter",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Theme transition on key elements */
+.theme-transition,
+.theme-transition * {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--color-border));
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--color-surface-hover));
+}
+
+@keyframes flash-green {
+  0% {
+    background-color: rgba(34, 197, 94, 0.25);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.row-flash {
+  animation: flash-green 1.5s ease-out;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}

@@ -1,0 +1,1429 @@
+@font-face {
+    font-family: "OneBangkokBETA230217-Regular";
+    src: url("/fonts/OneBangkokBETA230217-Regular.otf") format("opentype");
+    font-weight: normal;
+}
+
+html {
+    background-color: #1A1919 !important;
+}
+
+html * {
+    font-family: "OneBangkokBETA230217-Regular", "AvenirNext", sans-serif;
+}
+
+div.loginbox {
+    bottom: 20px;
+    position: fixed;
+    left: 75px;
+}
+
+.loginbox {
+    color: white;
+    margin: 0 auto;
+    max-width: 500px;
+    box-shadow: 0px 0px 0px #BEE2F9;
+    padding: 25px 25px;
+    position: relative;
+    -moz-border-radius: 10px;
+    -webkit-border-radius: 10px;
+    border-radius: 10px;
+    background: #00000085;
+    /* position: fixed; */
+    /* bottom: 0; */
+    /* right: 0; */
+    opacity: 0.7;
+}
+
+.loginbox .appheader .accountlabel {
+    color: #FFFFFF;
+}
+
+.loginbox .mainarea .fieldlist-row .actionlink {
+
+    color: #FFFFFF;
+
+}
+
+.loginbox .mainarea .fieldlist-title {
+
+    color: #FFFFFF;
+}
+
+.loginbox .mainarea .fieldlist-row .cb_container label {
+    color: #ffffff;
+}
+
+
+
+/*
+.accountlabel {
+    text-align: center;
+    background-image: url('https://drive.google.com/uc?id=1oc0BlMD2kwpLxlBQH6ArRLjbh4HwK749');
+    background-repeat: no-repeat;
+    background-size: contain;
+    background-position: center center;
+    color: transparent;
+}
+*/
+
+.uxp-body .uxp-sidebar .logo,
+.uxp-body .uxp-header .logo,
+.loginbox .loginlogo,
+.grid3-c .side2 .logo {
+    background-image: url("data:image/svg+xml,%3Csvg version='1.1' id='Layer_1' fill='%23fff' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' x='0px' y='0px' viewBox='0 0 650 202.4' style='enable-background:new 0 0 650 202.4;' xml:space='preserve'%3E%3Cg%3E%3Cg%3E%3Cpath d='M170.1,131.2v3.4h-7v20.6h-4.4v-20.6h-7v-3.4H170.1z'/%3E%3Cpath d='M189.6,144.6v10.5h-4.1V145c0-2.7-1.2-4-3.5-4c-2.6,0-4.4,1.7-4.4,4.5v9.7h-4.1v-24.5l4.1-0.4v10.7c1.1-2,3.1-3.2,5.8-3.2 C187.4,137.8,189.6,140.2,189.6,144.6z'/%3E%3Cpath d='M209.1,147.4h-11.7c0.2,3.3,2.1,5.1,5.6,5.1c2,0,4.1-0.5,5.8-1.5v3.2c-2.2,0.9-4.2,1.3-6.3,1.3c-5.7,0-9.2-3.4-9.2-8.9 c0-5.5,3.2-8.8,8.4-8.8c4.8,0,7.4,3.2,7.4,8.6V147.4z M197.4,144.9h7.9c-0.2-2.7-1.4-4.3-3.7-4.3S197.8,142.2,197.4,144.9z'/%3E%3Cpath d='M237.2,131.2h4.4v24h-4.4v-10.6h-11.8v10.6h-4.4v-24h4.4v9.8h11.8V131.2z'/%3E%3Cpath d='M261.7,147.4H250c0.2,3.3,2.1,5.1,5.6,5.1c2,0,4.1-0.5,5.8-1.5v3.2c-2.2,0.9-4.2,1.3-6.3,1.3c-5.7,0-9.2-3.4-9.2-8.9 c0-5.5,3.2-8.8,8.4-8.8c4.8,0,7.4,3.2,7.4,8.6V147.4z M249.9,144.9h7.9c-0.2-2.7-1.4-4.3-3.7-4.3S250.3,142.2,249.9,144.9z'/%3E%3Cpath d='M276.3,155.2c-0.3-0.9-0.5-1.7-0.5-2.8c-1.3,2.1-3.5,3.2-6.2,3.2c-3.2,0-5.2-1.5-5.2-4.3c0-2.5,1.6-4.1,5.4-5 c4.9-1.2,5.9-1.9,5.9-3.1V143c0-1.4-1.5-2.2-3.6-2.2c-2.4,0-4.7,0.8-6.6,2.1v-3.3c2.1-1.1,4.6-1.9,7.2-1.9c4.5,0,7.1,2.2,7.1,6 v7.3c0,2,0.2,3,0.5,4.1H276.3z M275.6,146.1c-0.5,0.8-1.4,1.3-4.6,2.1c-1.9,0.5-2.7,1.3-2.7,2.5c0,1.3,0.8,2.1,2.5,2.1 c2.5,0,4.7-1.5,4.7-4.3V146.1z'/%3E%3Cpath d='M295.1,138.2v3.9c-0.7-0.4-1.4-0.5-2.2-0.5c-2.7,0-4.3,1.9-4.3,5.3v8.3h-4.1v-12.9c0-2-0.2-3-0.5-4.1h3.9 c0.4,1,0.5,2,0.5,3.3v0.4c0.9-2.6,2.5-4.1,4.8-4.1C293.9,137.8,294.5,137.9,295.1,138.2z'/%3E%3Cpath d='M308.8,151.6v3.2c-1,0.5-2.2,0.8-3.5,0.8c-3.5,0-5.5-1.8-5.5-5.6v-9h-3.1v-1.6c2.6-0.8,4.4-2.6,5.3-5.8h1.9v4.7h4.7v2.8 H304v8.3c0,2.3,0.7,3.1,2.3,3.1C307.2,152.4,308.2,152,308.8,151.6z'/%3E%3Cpath d='M319.3,146.6c0-5.4,3.5-8.8,8.9-8.8c5.5,0,8.9,3.4,8.9,8.8c0,5.5-3.5,8.9-8.9,8.9C322.8,155.5,319.3,152.1,319.3,146.6z M332.9,146.6c0-3.7-1.6-5.8-4.7-5.8c-3,0-4.7,2.1-4.7,5.8c0,3.8,1.7,5.9,4.7,5.9C331.3,152.5,332.9,150.4,332.9,146.6z'/%3E%3Cpath d='M346.1,136.4v1.7h4.6v2.8h-4.6v14.2h-4.1v-14.2h-3.1v-1.6l3.1-1.2v-2.2c0-3.9,2-5.8,5.6-5.8c1.3,0,2.4,0.3,3.4,0.7v3.1 c-0.7-0.4-1.5-0.7-2.3-0.7C347,133.2,346.1,134.1,346.1,136.4z'/%3E%3Cpath d='M380.6,148.3c0,4.1-3.2,6.9-8.9,6.9h-10.2c0.3-1.1,0.5-2.3,0.5-4.7v-14.5c0-2.4-0.2-3.6-0.5-4.7h9.8 c5.2,0,8.1,2.3,8.1,5.9c0,2.7-1.8,4.5-5.2,5.2C378.4,143.1,380.6,145,380.6,148.3z M366,134.5c0.2,0.5,0.3,1.2,0.3,2.2v4.6h4.3 c2.9,0,4.6-1.2,4.6-3.5c0-2.3-1.6-3.3-4.6-3.3H366z M371,151.9c3.4,0,5.3-1.3,5.3-3.9c0-2.5-1.9-3.8-5.3-3.8h-4.6v5.5 c0,1-0.1,1.6-0.3,2.2H371z'/%3E%3Cpath d='M395.5,155.2c-0.3-0.9-0.5-1.7-0.5-2.8c-1.3,2.1-3.5,3.2-6.2,3.2c-3.2,0-5.2-1.5-5.2-4.3c0-2.5,1.6-4.1,5.4-5 c4.9-1.2,5.9-1.9,5.9-3.1V143c0-1.4-1.5-2.2-3.6-2.2c-2.4,0-4.7,0.8-6.6,2.1v-3.3c2.1-1.1,4.6-1.9,7.2-1.9c4.5,0,7.1,2.2,7.1,6 v7.3c0,2,0.2,3,0.5,4.1H395.5z M394.7,146.1c-0.5,0.8-1.4,1.3-4.6,2.1c-1.9,0.5-2.7,1.3-2.7,2.5c0,1.3,0.8,2.1,2.5,2.1 c2.5,0,4.7-1.5,4.7-4.3V146.1z'/%3E%3Cpath d='M419.8,144.6v10.5h-4.1V145c0-2.6-1.2-4-3.5-4c-2.6,0-4.4,1.7-4.4,4.5v9.7h-4.1v-12.9c0-2-0.2-3-0.5-4.1h3.9 c0.3,1,0.5,1.9,0.5,3.1c1.1-2.2,3.2-3.4,6-3.4C417.6,137.8,419.8,140.2,419.8,144.6z'/%3E%3Cpath d='M440.4,156.5c0,3.9-3.9,6.1-9,6.1c-5.4,0-8.4-2.3-8.4-4.9c0-1.8,1.3-3.1,3.4-3.6c-1.3-0.7-1.9-1.6-1.9-2.8 c0-1.4,0.8-2.4,2.3-3c-1.8-1-2.9-2.6-2.9-4.7c0-3.5,2.7-5.8,7.1-5.8c1.2,0,2.3,0.2,3.1,0.6l6.1-0.9v3.3l-2.8-0.3 c0.8,0.8,1.3,1.8,1.3,3.2c0,3.4-2.9,5.6-7.5,5.6c-0.9,0-1.8-0.1-2.6-0.3c-0.3,0.2-0.5,0.6-0.5,1c0,1.1,1.5,1.6,5,1.7 c2.7,0.1,4.4,0.4,5.6,1.2C439.8,153.7,440.4,154.9,440.4,156.5z M436.4,157c0-1.6-1.7-1.8-4.2-1.9c-1.5-0.1-2-0.1-3.4-0.4 c-1.2,0.4-1.9,1.2-1.9,2.4c0,1.6,1.5,2.7,4.7,2.7C434.4,159.8,436.4,158.9,436.4,157z M427.9,143.6c0,2,1.2,3.1,3.3,3.1 c2.2,0,3.4-1.1,3.4-3.1c0-2-1.2-3.2-3.4-3.2C429.1,140.5,427.9,141.6,427.9,143.6z'/%3E%3Cpath d='M459.6,155.2h-4.9l-4.3-5.9c-0.9-1.2-1.4-1.6-2.2-1.6h-0.8v7.5h-4.1v-24.5l4.1-0.4v14.7h0.8c0.8,0,1.3-0.4,2.2-1.5 l4.2-5.3h4.5l-4.9,5.7c-0.9,1.1-1.7,1.9-2.7,2.2c1,0.3,1.7,1,2.6,2.2L459.6,155.2z'/%3E%3Cpath d='M460.3,146.6c0-5.4,3.5-8.8,8.9-8.8c5.5,0,8.9,3.4,8.9,8.8c0,5.5-3.5,8.9-8.9,8.9C463.7,155.5,460.3,152.1,460.3,146.6z M473.9,146.6c0-3.7-1.6-5.8-4.7-5.8c-3,0-4.7,2.1-4.7,5.8c0,3.8,1.7,5.9,4.7,5.9C472.2,152.5,473.9,150.4,473.9,146.6z'/%3E%3Cpath d='M498.3,155.2h-4.9l-4.3-5.9c-0.9-1.2-1.4-1.6-2.2-1.6h-0.8v7.5H482v-24.5l4.1-0.4v14.7h0.8c0.8,0,1.3-0.4,2.2-1.5l4.2-5.3 h4.5l-4.9,5.7c-0.9,1.1-1.7,1.9-2.7,2.2c1,0.3,1.7,1,2.6,2.2L498.3,155.2z'/%3E%3C/g%3E%3Cg%3E%3Cpath d='M276.2,83.5v-0.4c5.9-0.6,9-3.9,9-9.3c0-7-5.4-10.8-15.5-10.8h-24.7v40c0,2-0.7,3.7-1.8,4v0.5h27.5 c9.7,0,16.1-5.3,16.1-13.3C287,88.3,283.2,84.5,276.2,83.5z M255,68.9h14c4.5,0,6.1,1.3,6.1,4.5v2.1c0,3.7-1.7,5.3-6.1,5.3h-14 V68.9z M276.6,95c0,5-1.8,6.8-6.7,6.8h-15.6v-0.4c0.7-0.9,0.8-2.3,0.8-4V86.5h14.8c4.7,0,6.7,2,6.7,6.4V95z'/%3E%3Cpath d='M85,47.3c-20.4,0-35.2,13.4-35.2,31.7c0,16.7,12.7,28.8,30,28.7c2,0,2.6,0,4.5-0.1v-7.2h-0.5c-0.3,0.9-2.1,1.3-4.3,1.3 c-10.4,0-17.6-9.4-17.6-22.7c0-15.6,9.1-25.7,23.2-25.7c13.8,0,22.3,10,22.3,26.2c0,17.6-11.3,30.2-25.7,30.4l0.1,4 c22.8,0,37.6-13.6,37.6-34.4C119.3,60.3,105.5,47.3,85,47.3z'/%3E%3Cpath d='M162.5,94.2h-0.4c-0.3-1.2-1.1-2.9-3.1-5.1l-23.7-26h-9.7v0.5c1,0.4,1.7,2,1.7,3.9v40.1h8.6V81.2c0-4-0.4-4.8-1-5.5 l0.4-0.3l27.5,30.1v2.1h8.4V63.1h-8.6V94.2z'/%3E%3Cpath d='M181.5,103.1c0,1.7-0.8,3.6-1.8,4v0.5h37.5v-6.2h-26.6v-0.4c0.4-0.5,0.8-1.9,0.8-3.4v-11h22.1v-6.2h-22.1V69.2h25.8v-6.2 h-35.7V103.1z'/%3E%3Cg%3E%3Cpath d='M317.5,63.1h-10.6v0.5c1.4,0.4,1.4,1.6,0,4.7l-17.8,39.3h9.3l6.9-15.4H321l6.9,15.4h9.8L317.5,63.1z M307.5,86.9l0.2-0.9 l3.4-7.8c1.4-3.3,1.8-4.4,1.5-5.3h0.4l5.5,13.1l0.2,0.9H307.5z'/%3E%3C/g%3E%3Cpath d='M577.2,86.2c-1.3-1.2-2.3-1.8-3.6-1.8v-0.4l23.7-21h-10.5l-23.2,20.5h-0.4V63.1h-9.8v44.6h9.8V85.4c1.2,0,2,0.4,3.8,2.2 l21.6,20h11.6L577.2,86.2z'/%3E%3Cpath d='M471,84.5v-0.4l23.7-21h-10.5l-23.2,20.5h-0.4V63.1h-9.8v44.6h9.8V85.4c1.2,0,2,0.4,3.8,2.2l21.6,20h11.6l-23.1-21.4 C473.3,85.1,472.3,84.5,471,84.5z'/%3E%3Cpath d='M520.8,61.6L520.8,61.6c-14.9,0-24.9,9.5-24.9,23.6s10,23.6,24.9,23.6h0.1c14.8,0,24.9-9.5,24.9-23.6 S535.7,61.6,520.8,61.6z M534.9,86.3c0,10.9-5.2,17.3-14.1,17.3h-0.1c-8.9,0-14.1-6.4-14.1-17.3v-2.1c0-10.9,5.2-17.3,14.1-17.3 h0.1c8.9,0,14.1,6.4,14.1,17.3V86.3z'/%3E%3Cpath d='M379.6,94.2h-0.4c-0.3-1.2-1.1-2.9-3.1-5.1l-23.7-26h-9.7v0.5c1,0.4,1.7,2,1.7,3.9v40.1h8.6V81.2c0-4-0.4-4.8-1-5.5 l0.4-0.3l27.5,30.1v2.1h8.4V63.1h-8.6V94.2z'/%3E%3Cpath d='M430.7,84.6c1.4,0.4,2.1,1.5,2.1,3.8v8.8c0,2.1,0.5,3.3,1.7,4l-0.2,0.4c-0.8,0-1.3,0.1-3.2,0.4c-3.1,0.6-6,1-8.2,1 c-10.9,0-17.3-6.1-17.3-16.5v-1.1c0-11.1,6.5-17.7,17.3-17.7c6.1,0,11.4,2.1,16.7,6.7v-9.1c-5.6-2.5-10.7-3.6-16.7-3.6 c-17.8,0-28,8.7-28,24.2c0,14.4,10.4,22.9,28,22.9c4.4,0,9-0.6,14-1.9c2.5-0.6,3.4-0.5,4.2,0.6h0.5V84.1h-10.9V84.6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E%0A") !important;
+}
+
+
+.appheader .brandinglabel {
+    display: none
+}
+
+
+
+/* dashboard changes */
+.uxp-body .uxp-top-bar {
+    background: #1A1919 !important;
+    color: white;
+}
+
+.uxp-header .title .svg-icon {
+    filter: invert(1);
+}
+
+.uxp-body .uxp-header .tray .menu {
+    filter: invert(1);
+}
+
+/* reports tab */
+.wsp-dashboard-body .modal_layer {
+background-color: #2B2B2A !important;
+}
+
+.field-label {
+color: white !important;
+}
+
+.v3icon-error-close:before {
+    background-color: #2B2B2A !important;
+}
+
+.uxp-menu-options {
+    background: #1A1919 !important;
+}
+.uxp-menu-options .items a {
+color: white;
+}
+
+.uxp-body .uxp-header {
+    background: #1A1919 !important;
+    color: white;
+}
+
+.uxp-body .uxp-header .title {
+    color: white !important;
+}
+.dashboard-views-switcher {
+font-weight: bold;
+}
+
+/* header inbox icon-clicked */
+   .columns_container td {
+    background-color:  #2B2B2A !important;
+}
+
+/* header-conversation-icon-clicked */
+.gfcp-left-col { 
+    background-color: #1A1919 !important;
+}
+
+#__default_popup__.modal .popup_close {
+    filter: invert(1);
+}
+
+.gfcp-right-col {
+ background-color: #2B2B2A !important;
+}
+/* header-notifications-icon-clicked */
+.global-fixed-chat-panel, .global-fixed-notification-panel {
+background-color: #2B2B2A !important;
+}
+.alert-card h3 {
+color: white !important;
+}
+
+#reports_on_db .fieldgroup-body .actionlink {
+background-color: #2B2B2A !important;
+color: white !important;
+}
+.alert-card:hover {
+background-color:#1A1919 !important;
+}
+
+
+.uxp-body {
+    background-color: #1A1919;
+}
+
+
+.uxp-body .uxp-sidebar .links .sidebar-menu-wrapper .sidebar-menu {
+    background-color: #00000078 !important;
+}
+
+.uxp-body .uxp-sidebar {
+    background-color: #1A1919 !important;
+   border-right: 5px solid #00000078 !important;
+}
+
+.uxp-body .uxp-sidebar .links .sidebar-menu-wrapper .sidebar-menu li:hover,
+.uxp-body .uxp-sidebar .links .sidebar-menu-wrapper .sidebar-menu li.active {
+    background-color: #00000078;
+}
+
+
+.status-card {
+    background-color: #2B2B2A !important;
+    color: white;
+}
+
+.st-title {
+font-weight: bold;
+}
+
+.other-stat {
+color: white !important;
+}
+
+.stat-block {
+    background-color: #2B2B2A !important;
+    color: white;
+}
+
+.stat-block .stat-record {
+    background-color: #00000078 !important;
+}
+
+
+/* work-request-details*/
+
+.wr-details-title {
+color: white !important;
+}
+
+.dtl-content-info-wrapper {
+background-color: #2B2B2A !important;
+}
+.wr-details-title {
+color: white !important;
+}
+
+.dtl-content-info-wrapper {
+background-color: #2B2B2A !important;
+}
+
+.scroll-tab-wrapper {
+background-color: #2B2B2A !important;
+}
+
+.page-sec-wrap {
+background-color: #2B2B2A !important;
+}
+.uxp-body label  {
+color: white !important;
+}
+
+.wr-request-detail-single .other-stat .other-stat-data.wr-id{
+color: white !important;
+}
+
+.uxp-dtl-content-right-fixed {
+background-color: #2B2B2A !important;
+}
+
+.error-text {
+color: white !important;
+}
+
+.tab-content-wrapper textarea {
+color: white !important;
+}
+
+.activitiy-history-row:hover {
+    background: #3f3f3f !important;
+}
+
+/* title-box*/
+.tab-content-wrapper h3.sec-head {
+background-color: #00000078 !important;
+}
+.wr_details_uploads {
+background-color: #3f3f3f !important;
+}
+
+.dtl-content-info-wrapper .navigation__link {
+background-color: #2B2B2A !important;
+color: white;
+}
+
+
+/*create-work-request*/
+
+.uxp-content-left {
+background-color: #2B2B2A !important;
+}
+.uxp-services-container .uxp-widget.actionicon {
+background-color: #2B2B2A !important;
+}
+
+.breadcrumb>li>a {
+color: white !important;
+}
+
+.uxp-services-container .uxp-widget.actionicon .title {
+color: white !important;
+}
+
+.page-tab-heading-wrapper {
+background-color: #2B2B2A !important;
+}
+.tab-heading-text {
+color: white !important;
+}
+.misc-data {
+font-weight:bold;
+}
+.breadcrumb>li {
+color: white !important;
+}
+
+
+/* asset */
+
+
+.grid3.grid3-h {
+    background: #1A1919 !important
+}
+
+
+.grid3.grid3-bh {
+    background: #1A1919 !important;
+}
+
+.grid3.grid3-c .gridmain {
+   background: transparent !important;
+}
+
+
+.grid3.grid3-bh .iviva-bread-crumb a {
+    color: white !important;
+}
+.grid3.grid3-bh .iviva-bread-crumb a:first-child:before {
+     filter: invert(1);
+}
+
+.grid3.grid3-c .gridmain .tab_container .tabstrip {
+    background-color: #2B2B2A !important;
+}
+
+.grid3.grid3-c .gridmain .tab_container {
+    background-color: #2B2B2A !important;
+}
+
+.celllist .results .resultcontainer {
+    background-color: #2B2B2A !important;
+}
+
+.grid3.grid3-c .gridmain .weblet .content {
+    background-color: #2B2B2A !important;
+}
+
+.grid3.grid3-c .gridmain .weblet .title {
+    color: white !important;
+}
+
+.grid3.grid3-c .side2 {
+    background: #1A1919 !important;
+}
+
+.grid3.grid3-c .side2 ul.applist {
+    background: #1A1919 !important;
+}
+
+.grid3.grid3-c .side2 ul.applist-other {
+    background: #00000078 !important;
+}
+
+.grid3.grid3-c .side2 ul.applist li a{
+background: #00000078 !important;
+}
+
+.grid3.grid3-c .side2 ul.applist li a.selected {
+background: #00000078 !important;
+}
+
+.grid3.grid3-c .gridmain .tab_container .tabstrip .tab {
+background: #00000078 !important;
+color: white !important;
+}
+.grid3.grid3-c .gridmain .tab_container .tabstrip .tab.tab_selected {
+background: #3078d7 !important;
+}
+
+/* asset-cog wheel */
+.v3icon-cog-2:before {
+
+}
+
+/* work-request-home icon */
+.breadcrumb>li.home:before {
+filter:invert(1);
+}
+
+/* work-request */
+.check-box-wrapper {
+background: #2B2B2A !important;
+}
+
+.select-all-cards-title{
+background: #2B2B2A !important;
+color: white;
+}
+
+.select-all-cards-check-box {
+background: #2B2B2A !important;
+}
+
+.filter-bar {
+background: #2B2B2A !important;
+}
+
+.filter-bar-inner-wrap {
+background: #2B2B2A !important;
+}
+
+
+.uxp-content-right-fixed {
+background: #2B2B2A !important;
+}
+
+.wr-details-heading {
+color: white;
+}
+
+.scroll-tab-wrapper .navigation {
+background: #2B2B2A !important;
+}
+
+.uxp-body input, .uxp-body textarea{
+background: #2B2B2A !important;
+color: white;
+}
+
+.additional-data-wrap {
+background: #2B2B2A !important;
+}
+.additional-data-wrap .field-row .section-heading {
+color: white !important;
+}
+
+.misc-info, .last-update, .req-id {
+color: white !important ;
+}
+
+ /* work-order-card-clicked-right-panel */
+.tdr-val {
+color: white !important;
+}
+.svg-icon {
+color: white !important;
+}
+
+/*create-work-request*/
+
+.fixed-overlayed-right-panel {
+background: #2B2B2A !important;
+}
+
+
+/*facility-management*/
+
+.grid3.grid3-c .gridmain .weblet  {
+   background: #2B2B2A !important;
+}
+.grid3.grid3-c .gridmain .weblet.grid3.grid3-c .gridmain .weblet {
+background: #2B2B2A !important;
+}
+.v3icon-error-close:before {}
+
+/*facility-management - widget-font color changes*/
+
+.grid3.grid3-c .gridmain .weblet .fieldlist-content .sr_object {
+color: white !important;
+}
+
+.grid3.grid3-c .gridmain .weblet .fieldlist-content .subtxt {
+color: white !important;
+}
+
+.v3icon-search:before {
+filter: invert(1);
+}
+
+.celllist .nodataresults {
+    color: darkgrey !important;
+}
+
+/*data-configuration*/
+
+.config-portal-settings-block .actionlink {
+      color: white !important;
+}
+
+.config-portal-settings-block a.lt {
+  color: white !important;
+}
+
+.config-portal-settings-block span.lt {
+  color: white !important;
+}
+
+.colorscheme10 {
+ color: white !important;
+}
+
+.fieldgroup.colorscheme {
+background: #2B2B2A !important;
+border: 1px solid #dedede !important;
+
+}
+
+.modal_layer .actionlayer.actionlayer {
+background: #2B2B2A !important;
+}
+
+.modal_layer .actionlayer .fieldlist .fieldlist-name .fieldlist-title {
+color: white !important;
+}
+
+.grid3.grid3-c .gridmain .content > .fieldgroup .fieldlist-name .fieldlist-title {
+color: white !important;
+}
+
+.modal_layer .actionlayer.actionlayer {
+background: #2B2B2A !important;
+}
+
+.modal_layer .actionlayer input, .modal_layer .actionlayer .field-select, .modal_layer .actionlayer textarea {
+background: #2B2B2A !important;
+}
+
+.field-select > .textlabel {
+background: #2B2B2A !important;
+color: darkgray !important;
+}
+
+.modal_layer .actionlayer label {
+    color: white !important;
+}
+
+#gp_iidef #radiobuttons > div .fieldlist-title {
+ color: white !important;
+}
+
+.modal_layer .actionlayer .field-select > .down-arrow {
+    filter: invert(1);
+}
+
+#percentagevalue {
+color: white !important;
+}
+
+/*home-location dashboard-text below-widget-color-change*/
+.celllist .nomoredataresults {
+    color: darkgrey !important;
+}
+
+/*home-location dashboard-locations*/
+.celllist-header .cells_container_column {
+    color: white !important;  
+}
+
+.colorscheme10 .sr_sub, .colorscheme10 .subtxt, .colorscheme10 .nodata, .colorscheme10 .fieldlist-subtitle, .colorscheme10 .fieldlist-vertical-title, .colorscheme10 .currency_symbol, .colorscheme10 .timezone {
+    color: darkgray !important;
+}
+
+/*home-location dashboard-locations-one bangkok*/
+
+.grid3.grid3-c .gridmain .fieldlist-vertical-content .field-label, .grid3.grid3-c .gridmain .fieldlist-vertical-content span.textfield_long, .grid3.grid3-c .gridmain .fieldlist-vertical-content div.use-parent-visibility, .grid3.grid3-c .gridmain .fieldlist-vertical-content > span.nodata, .grid3.grid3-c .gridmain .fieldlist-vertical-content > span .nodata, .grid3.grid3-c .gridmain .fieldlist-vertical-content .field-select {
+background: #2B2B2A !important;
+}
+
+.grid3.grid3-c .gridmain .sidebar {
+background: #2B2B2A !important;
+}
+
+/*widget separation border and text*/
+
+.wr-status-widget-title {
+font-weight :bold;
+color: #cbcbcb !important;
+}
+
+.wr-status-widget-title:before, .wr-status-widget-title:after {
+border-bottom: 2px solid #c4c4c4 !important;
+}
+
+.grid3.grid3-c .gridmain .tabpage .sidebar .user-image-wrapper > div img {
+    border: 15px solid  #606060 !important;
+}
+
+/*create planned work request- box container*/
+
+.field-group div.request-form-data {
+background: #3f3f3f !important;
+border: none !important;
+}
+
+.request-form-data .description-input {
+color: white !important ;
+}
+
+.custom-dropdown ul.active, .custom-dropdown .ui-autocomplete.ui-menu {
+background: #3f3f3f !important;
+}
+
+.custom-dropdown ul li, .custom-dropdown .ui-autocomplete.ui-menu li {
+color: white !important;
+}
+
+.custom-dropdown ul li:hover {
+background-color: #5a5a5a !important;
+}
+
+/*work order top bar purple to black*/
+
+.uxp-body.corrective-work-orders .uxp-header:before, .uxp-body.create-work-orders .uxp-header::before {
+background: linear-gradient(90deg, rgb(12 12 12) 0%, rgb(12 12 12) 0%, rgba(255, 255, 255, 1) 45%) !important;
+}
+
+.uxp-body.corrective-work-orders .uxp-sidebar, .uxp-body.create-work-orders .uxp-sidebar {
+    border-color: #00000078  !important;
+}
+
+/*work request top bar blue to black*/
+
+.uxp-body.wsp-work-req .uxp-header:before {
+background: linear-gradient(90deg, rgb(12 12 12) 0%, rgb(12 12 12) 0%, rgba(255, 255, 255, 1) 45%) !important;
+}
+.uxp-body.wsp-work-req .uxp-sidebar {
+    border-color: #00000078  !important;
+}
+
+/*panned work order top bar green to black*/
+
+.uxp-body.plan-preventive .uxp-header:before {
+background: linear-gradient(90deg, rgb(12 12 12) 0%, rgb(12 12 12) 0%, rgba(255, 255, 255, 1) 45%) !important;
+}
+.uxp-body.plan-preventive .uxp-sidebar {
+    border-color: #00000078  !important;
+}
+
+/*nav-scroll bar */
+
+.uxp-sidebar *::-webkit-scrollbar-thumb {
+    background-color: #00000078 !important;
+    border: #00000078 !important;
+}
+.uxp-sidebar *::-webkit-scrollbar-track {
+background: #00000078 !important;
+}
+
+/*home - user dashboard-users*/
+.sidebargroup .title {
+color: white !important;
+background: #00000078 !important;
+}
+
+.contentfield {
+   color: darkgray !important;
+}
+/*user*/
+
+.grid3.grid3-c .gridmain .mobile-drawer.mobile-drawer {
+background: #2B2B2A !important;
+}
+.grid3.grid3-c .gridmain .sidebar {
+    border: 15px solid  #2B2B2A !important;
+    background:  #2B2B2A !important;
+}
+
+.grid3.grid3-c .gridmain input, .grid3.grid3-c .gridmain textarea, .grid3.grid3-c .gridmain .field-select, .grid3.grid3-c .gridmain span.use-parent-visibility {
+background: #2B2B2A !important;
+color: white !important;
+}
+
+.weblet .field-select > .textlabel {
+    background: #2B2B2A !important;
+}
+
+/*planned work order details*/
+.service-grp-card {
+   background: #3f3f3f !important;
+}
+
+.view-task-btn, .sgc-more {
+    color: white !important;
+}
+
+/* getting started */
+
+.fieldgroup {
+background:  #1A1919 !important;
+}
+
+.appheader .titlesection {
+    filter: invert(1);
+}
+
+.videocontainer .videolist .title {
+    background: #2B2B2A !important;
+   color: white !important;
+}
+
+/* !important issue fixes */
+
+.grid3.grid3-c .gridmain .weblet.weblet {
+    background: #2B2B2A !important;
+}
+
+.comments-heading {
+color: darkgray !important;
+}
+.stat-block.active .stat-record.stat-record {
+    background: #1A1919 !important;
+}
+
+.stat-block-filter-popup {
+background: #1A1919 !important;
+}
+
+.grid3.grid3-c .gridmain .fieldlist-vertical-title.fieldlist-vertical-title {
+color: white !important;
+}
+
+/* !important issue fixes - location dashboard-location-onebagkok*/
+
+.grid3.grid3-c .gridmain .tabpage.tabpage {
+background: #2b2b2a !important;
+}
+
+.grid3.grid3-c .gridmain .edit .fieldgroup.fieldgroup {
+background: #2b2b2a !important;
+}
+
+.ucscf-blk {
+background: #000608 !important ;
+}
+
+.ucscf-blk.overdue {
+    background: #E9573F !important;
+}
+
+.ucscf-blk.responded {
+    background: #239421 !important;
+}
+
+.ucscf-blk.resolved{
+    background: #239421 !important;
+}
+
+
+.grid3.grid3-c .gridmain .fieldlist-vertical-content .field-label.field-label, .grid3.grid3-c .gridmain .fieldlist-vertical-content span.textfield_long, .grid3.grid3-c .gridmain .fieldlist-vertical-content div.use-parent-visibility, .grid3.grid3-c .gridmain .fieldlist-vertical-content > span.nodata, .grid3.grid3-c .gridmain .fieldlist-vertical-content > span .nodata, .grid3.grid3-c .gridmain .fieldlist-vertical-content .field-select {
+    color: darkgray !important;
+}
+
+.contentfield .fieldlist-title, .contentfield .fieldlist-vertical-title, .contentfield .fieldlist-subtitle {
+    color: white !important;
+}
+
+.grid3.grid3-c .gridmain .edit .fieldgroup input, .grid3.grid3-c .gridmain .edit .fieldgroup .field-select.field-select, .grid3.grid3-c .gridmain .edit .fieldgroup textarea {
+    background: #2B2B2A !important;
+   border: 1px solid #dedede !important;
+}
+
+.grid3.grid3-c .gridmain .fieldlist-vertical-content span.nodata, .grid3.grid3-c .gridmain .fieldlist-vertical-content .nodata.plain, .grid3.grid3-c .gridmain .fieldlist-vertical-content .nodata.label {
+    color: darkgray !important;
+}
+ 
+.grid3.grid3-c .gridmain .edit .fieldgroup input, .grid3.grid3-c .gridmain .edit .fieldgroup .field-select, .grid3.grid3-c .gridmain .edit .fieldgroup textarea.fieldgroup textarea {
+background: #2B2B2A !important;
+}
+
+.grid3.grid3-c .gridmain .fieldlist-vertical-content span.nodata, .grid3.grid3-c .gridmain .fieldlist-vertical-content .nodata.plain, .grid3.grid3-c .gridmain .fieldlist-vertical-content .nodata.label {
+    color: darkgray !important;
+}
+.grid3.grid3-c .gridmain .fieldlist-vertical-content .field-label, .grid3.grid3-c .gridmain .fieldlist-vertical-content span.textfield_long, .grid3.grid3-c .gridmain .fieldlist-vertical-content div.use-parent-visibility, .grid3.grid3-c .gridmain .fieldlist-vertical-content > span.nodata.nodata, .grid3.grid3-c .gridmain .fieldlist-vertical-content > span .nodata, .grid3.grid3-c .gridmain .fieldlist-vertical-content .field-select {
+    color: darkgray !important;
+}
+
+.grid3.grid3-c .gridmain .fieldlist-vertical-content > span {
+    color: darkgray !important;
+}
+
+.grid3.grid3-c .gridmain .fieldeditor .edit .fieldlist-row > .fieldlist-content > .field-wrapper > .use-parent-visibility {
+    background: #2b2b2a !important;
+   border: 1px solid #dedede !important;
+}
+
+.grid3.grid3-c .gridmain .fieldeditor .edit .fieldlist-row > .fieldlist-content > .field-wrapper > .use-parent-visibility.use-parent-visibility {
+border: 1px solid #dedede !important;
+color : darkgray !important;
+}
+
+.colorscheme12 {
+color: darkgray !important;
+}
+
+.grid3.grid3-c .gridmain .edit .fieldgroup input, .grid3.grid3-c .gridmain .edit .fieldgroup .field-select, .grid3.grid3-c .gridmain .edit .fieldgroup textarea {
+color : #424242 !important;
+}
+
+
+
+/* IBMS dashboard- equipment -text*/
+.grid3.grid3-c .gridmain .fieldlist-vertical-content > a {
+    color: white !important;
+}
+
+
+/* add alarm*/
+
+.actionlayer {
+color: white !important;
+}
+
+.modal_layer .actionlayer .textfooter.textfooter {
+    color: white !important;
+}
+
+.likeinput, input[type='text'], input[type='password'], input[type='search'], input[type='number'] {
+color: darkgray !important;
+}
+
+.field-select > select {
+background: #2B2B2A !important;
+color: white !important;
+}
+
+.modal_layer .actionlayer .normal_action {
+background: #0080ff !important;
+}
+
+.celllist-cell .celllist-cell-block {
+    background: #3f3f3f !important;
+    color: white !important;
+}
+
+.sidebar .fieldgroup-title .titletext {
+    color: white !important;
+}
+
+.contentfield .sr_sub, .contentfield .subtxt, .contentfield .nodata, .contentfield .fieldlist-subtitle, .contentfield .fieldlist-vertical-title, .contentfield .currency_symbol, .contentfield .timezone {
+    color: darkgray !important
+}
+
+.contentfield .sr_sub, .contentfield .subtxt, .contentfield .fieldlist-subtitle, .contentfield .fieldlist-vertical-title, .contentfield .currency_symbol, .contentfield .timezone {
+    color: white !important;
+}
+
+/* IBMS dashboard*/
+
+.celllist-cell .celllist-cell-block .subtxt.subtxt {
+    color: white !important;
+}
+
+.celllist-cell .celllist-cell-block .quickinfo.quickinfo{
+ color: white !important;
+}
+
+.object_link_qi .v3-app-icon {
+    filter: invert(1);
+}
+a img {
+    filter: invert(1);
+}
+
+/* location types*/
+
+ul.repeater li.results_section .repeater-cell {
+     background: #2B2B2A !important;
+}
+
+/* cwo*/
+
+.grid3.grid3-c .gridmain .fieldeditor .edit {
+ background: #2B2B2A !important;
+}
+
+
+.grid3.grid3-c .gridmain .normal_action {
+    background: #3078D6 !important;
+   border: none !important;
+}
+
+
+#accordion-tabs .content .expandcontainer .fieldexpandable-header .titletext {
+color: #424242 !important;
+}
+
+#accordion-tabs .content .expandcontainer .fieldexpandable-body .titletext:not(:empty) {
+color: white !important;
+}
+
+/*cwo- process*/
+
+.tab_container {
+ background: #2B2B2A !important;
+}
+
+.tabpage .fe_table {
+background: #2B2B2A !important;
+}
+
+.wfprocess_container.wfprocess_container {
+ background: #2B2B2A !important;
+}
+
+.fe_table .fe_row .table_cell {
+   background: #2B2B2A !important;
+   border: 1px solid #dedede !important;
+}
+
+/*incident dashboard*/
+.popuppanel .title {
+  background: #2B2B2A !important;
+}
+
+.popuppanel {
+background: #2B2B2A !important;
+}
+
+.grid3.grid3-c .gridmain .content .content.fieldlist-content > span .nodata, .grid3.grid3-c .gridmain .content .content.fieldlist-content > span.nodata.nodata {
+    color: darkgray !important;
+}
+
+.grid3.grid3-c .gridmain .fieldlist-vertical-content span.textfield_long, .grid3.grid3-c .gridmain .fieldlist-vertical-content div.use-parent-visibility, .grid3.grid3-c .gridmain .fieldlist-vertical-content > span.nodata, .grid3.grid3-c .gridmain .fieldlist-vertical-content > span .nodata.nodata, .grid3.grid3-c .gridmain .fieldlist-vertical-content .field-select {
+    color: darkgray !important;
+}
+
+/*edit supervisor*/
+
+.modal_layer .actionlayer .fieldlist .fieldlist-content a.object_link_qi {
+    color: darkgray !important;
+}
+
+/*password reset field*/
+.field-label {
+    color: #424242 !important;
+}
+
+/*subsystem points*/
+.field-label {
+    color: darkgray !important;
+}
+
+/*service item*/
+
+.task-preview-card .tcc-title {
+color: white;
+}
+.task-preview-card .tcc-right-section-top .tcc-sub-info {
+color: white ;
+}
+
+.custom-check-box-extra-dtl {
+color: white;
+}
+.order-number {
+color: white;
+}
+
+.input-check {
+border: 2px solid darkgray !important;
+}
+
+.awo-status {
+background: #5AAD4E !important;
+}
+
+/*service contract management dashboard-adjustment methods*/
+.grid3.grid3-c .gridmain .fieldlist-vertical-content .field-label, .grid3.grid3-c .gridmain .fieldlist-vertical-content span.textfield_long.textfield_long, .grid3.grid3-c .gridmain .fieldlist-vertical-content div.use-parent-visibility, .grid3.grid3-c .gridmain .fieldlist-vertical-content > span.nodata, .grid3.grid3-c .gridmain .fieldlist-vertical-content > span .nodata, .grid3.grid3-c .gridmain .fieldlist-vertical-content .field-select {
+color: darkgray !important;
+}
+
+/*service contract -send message*/
+.qibubble.bubble, .listbubble.bubble {
+background: #1A1919 !important;
+}
+
+/*Dashboard->Service Contract search page->click on Service contract available>Send message template*/
+
+.contentfield > table > tbody > tr > td.content {
+    width: auto;
+    background-color: #2b2b2a;
+}
+
+.modal_layer .actionlayer input, .modal_layer .actionlayer .field-select, .modal_layer .actionlayer textarea {
+color: darkgray;
+}
+
+.tokenfield.form-control .twitter-typeahead .token-input.token-input {
+background-color: #2b2b2a !important;
+}
+
+.qibubble.bubble, .listbubble.bubble {
+background-color:#1A1919 !important;
+}
+
+.grid3.grid3-c .gridmain .fieldlist-vertical-content .field-label, .grid3.grid3-c .gridmain .fieldlist-vertical-content span.textfield_long.textfield_long, .grid3.grid3-c .gridmain .fieldlist-vertical-content div.use-parent-visibility, .grid3.grid3-c .gridmain .fieldlist-vertical-content > span.nodata, .grid3.grid3-c .gridmain .fieldlist-vertical-content > span .nodata, .grid3.grid3-c .gridmain .fieldlist-vertical-content .field-select {
+color: darkgray !important;
+}
+
+.qibubble.bubble .body .body-content, .listbubble.bubble .body .body-content {
+background-color:#1A1919 !important;
+}
+
+/*General-Message template */
+
+caption, th, td {
+background-color:#2b2b2a !important;
+}
+
+/*FM-color change */
+.contentfield > table > tbody > tr > td.sidebar {
+color: dimgray !important
+}
+
+/*FM-senior-report-template */
+.grid3.grid3-c .gridmain .fieldlist-vertical-content .field-label, .grid3.grid3-c .gridmain .fieldlist-vertical-content span.textfield_long.textfield_long, .grid3.grid3-c .gridmain .fieldlist-vertical-content div.use-parent-visibility, .grid3.grid3-c .gridmain .fieldlist-vertical-content > span.nodata, .grid3.grid3-c .gridmain .fieldlist-vertical-content > span .nodata, .grid3.grid3-c .gridmain .fieldlist-vertical-content .field-select {
+color: darkgray !important;
+}
+
+/*Location-print qr */
+
+/*Location-site-setting*/
+.edit .fieldgroup .warning {
+background-color:#2b2b2a !important;
+}
+
+/*Location-user roles-close icon*/
+.v3icon-error-close:before {
+    color: ivory;
+}
+.ur-category .ur-category-title::before {
+    background-color: #2b2b2a !important;
+}
+
+/*Organization-staff-A to Z */
+.celllist-util .celllist-sorter .order.ascending {
+    filter: invert(1);
+}
+.celllist-util .celllist-sorter .order.descending{
+    filter: invert(1);
+}
+
+.celllist-util .celllist-sorter select {
+    background-color:#2b2b2a;
+color: white;
+}
+
+.ui-datepicker-header {
+background: linear-gradient(#3f3f3f, #f0f0f0 72px);
+}
+
+.ui-datepicker {
+background: linear-gradient(#e6e5e1, #3f3f3f 72px);
+}
+
+.ui-datepicker-calendar .ui-state-default {
+    color: darkgrey;
+}
+
+.pinbubble .nodata {
+    background-color: #2b2b2a;
+    color: white;
+}
+
+.pinbubble .pointer_r, .listbubble .pointer_r, .qibubble .pointer_r, .contentqibubble .pointer_r {
+border-left: 10px solid #2b2b2a; 
+}
+
+.dynlist_results {
+background-color: #2b2b2a;
+}
+
+.datecontrol .choices {
+background-color: #2b2b2a;
+color: white;
+}
+
+/*App-list */
+ul.applist.applist {
+    background: #1A1919 !important;
+}
+
+ul.applist li a.selected {
+    background-color: #2b2b2a;
+}
+
+ul.applist li a:hover, ul.applist li a.selected:hover {
+    background-color: #2b2b2a;
+}
+
+.sidebargroup {
+    background: linear-gradient(rgb(63 63 63), rgba(255, 255, 255, 0) 72px);
+}
+
+.colorscheme10 .celllist .more.bottom {
+    background: linear-gradient(rgb(63 63 63), rgb(63 63 63), #3f3f3f);
+}
+
+.colorscheme10 .celllist-column-even .celllist-cell:nth-of-type(odd) {
+    background-color: rgb(43 43 42) !important;
+}
+/*cogwheel-menu*/
+.grid3.grid3-c .gridmain #dashboardmenu {
+    background:  #1A1919 !important;
+}
+
+html .subtxt, html .nodata {
+    color: white;
+}
+
+.popupmenu {
+   background-color: #1A1919;
+color: white !important;
+}
+table {
+    background-color: #2b2b2a;
+}
+
+.grid3.grid3-c .gridmain .weblet ul.celllist-column li.celllist-cell.celllist-cell {
+    background: #2b2b2a !important;
+}
+
+.colorscheme11 .celllist .more.bottom {
+    background: linear-gradient(rgb(43 43 42), rgb(43 43 42), #2b2b2a);
+}
+/*location dashboard-layouts*/
+
+.leaflet-container {
+    background: #2b2b2a !important;
+}
+
+.celllist-cell .celllist-cell-block {
+    background: #2b2b2a !important;
+}
+/*activities*/
+
+.colorscheme9 .celllist-column-even .celllist-cell:nth-of-type(odd) {
+    background-color: rgb(43 43 42) !important;
+}
+
+.colorscheme9 .celllist .more.bottom {
+    background: linear-gradient(rgba(240, 240, 240, 0), rgb(43 43 42), #2b2b2a);
+}
+
+.celllist-cell .celllist-cell-block {
+    background: #3f3f3f !important;
+}
+
+.pinbubble, .listbubble, .qibubble, .contentqibubble {
+    background-color: #1A1919 !important;
+}
+
+.modal_container .mobile-drawer.mobile-drawer {
+    background: #2b2b2a !important;
+}
+
+.qibubble.bubble .pointer_l.pointer_l, .listbubble.bubble .pointer_l {
+    border-right-color: #1a1919;
+}
+.qibubble.bubble .pointer_r.pointer_r, .listbubble.bubble .pointer_r {
+    border-left-color: #1a1919;
+}
+/*welcome*/
+.grid3.grid3-h .gridmain .usersection .welcomemsg {
+color: darkgray !important;
+}
+.colorscheme2 .celllist .more.bottom {
+background: #1a1919 !important;
+}
+
+.colorscheme1 .celllist .more.bottom {
+background: #1a1919 !important;
+}
+
+/*property management dashboard*/
+.contentfield .v3-app-icon-location {
+  filter: invert(1) !important;
+}
+
+.colorscheme5 .sr_sub, .colorscheme5 .subtxt.subtxt, .colorscheme5 .nodata, .colorscheme5 .fieldlist-subtitle, .colorscheme5 .fieldlist-vertical-title, .colorscheme5 .currency_symbol, .colorscheme5 .timezone {
+    color: darkgray !important;
+}
+
+.colorscheme11 .sr_sub, .colorscheme11 .subtxt.subtxt, .colorscheme11 .nodata, .colorscheme11 .fieldlist-subtitle, .colorscheme11 .fieldlist-vertical-title, .colorscheme11 .currency_symbol, .colorscheme11 .timezone {
+ color: darkgray !important;
+}
+.bolder {
+    color: white;
+}
+
+#__default_popup__.modal .content>.columns_container>tbody>tr>td:last-child .popuppanel .content .notification_message {
+    color: darkgray;
+}
+
+/*master-work-order -service-category*/
+.fixed-overlayed-right-panel .uxp-widget.category-card {
+    background: #3f3f3f !important;
+   border: 1px solid white  !important;
+    box-shadow: 0px 0px 4px #3f3f3f  !important;
+}
+
+.navigation-controller-inner {
+background: #1a1919 !important;
+}
+
+.hide-switch {
+    background-color: #1a1919 !important;
+}
+
+.field-misc-data-wrapper {
+ background: #3f3f3f !important;
+}
+
+.field-misc-data-wrapper .bg-primary {
+    background: #0279f4 !important;
+    color: #ffffff !important;
+}
+/*message box*/
+.celllist-cell-block .cells_container_column span {
+    color: darkgray !important;
+}
+
+#__default_popup__.modal .content>.columns_container>tbody>tr>td .contentfield.contentfield {
+    background-color: #2B2B2A !important;
+    border: 16px solid #3f3f3f !important;
+}
+
+#__default_popup__.modal .content>.columns_container>tbody>tr>td:last-child .contentfield.contentfield {
+    background: #3f3f3f !important;
+}
+#__default_popup__.modal .content>.columns_container>tbody>tr>td:last-child .popuppanel.popuppanel {
+    background: #3f3f3f !important;
+}
+
+.dynlist .clearer {
+    background-color: #2b2b2a !important;
+}
+
+.grid3.grid3-c .gridmain .edit .fieldgroup input, .grid3.grid3-c .gridmain .edit .fieldgroup .field-select, .grid3.grid3-c .gridmain .edit .fieldgroup textarea.fieldgroup textarea{
+color: darkgray !important;
+}
+/*save button*/
+.grid3.grid3-c .gridmain .edit .fieldgroup .groupeditor-save, .grid3.grid3-c .gridmain .edit .fieldgroup .groupeditcancelor-.groupeditcancelor- {
+color: white !important;
+border: none !important;
+}
+
+.guider.dark {
+   background-color: #1a1919 !important;
+}
+
+.guider.dark .pointer_l {
+background-color: #1a1919 !important;
+}
+
+.datecontrol > .datefield-container > input.label[type='text'], .datecontrol > .datefield-container .likeinput.label {
+    background-color: #3f3f3f !important;
+}
+
+
+.actionlayer .pagetitle-subtitle {
+    color: #ffffff !important;
+}
+
+.celllist-cell-block .sr_object {
+    color: darkgray !important;
+}
+
+.gfcp-chat-heading {
+color: white !important;
+}
+
+.comments-window-wrapper.self .chat-history {
+    color: darkgray !important;
+}
+
+.grid3.grid3-c .gridmain .sidebar .side-bar-header {
+     background: #3f3f3f !important;
+} 
+
+.stat-record-more {
+    filter: invert(1);
+}
+
+.stat-block-filter-popup-switch {
+    filter: invert(1) !important;
+}
+
+.oscm-workrequest .uxp-content-summary-column-more {
+    background-color: #1a1919 !important;
+}
+
+.oscm-workrequest .uxp-content-summary-column-more.uxp-content-summary-column-more {
+border-color: white !important;
+}
+
+.portal-stat-wrapper .all-stat-block {
+    border-color: white !important;
+}
+
+.has-front-icon.team-member-card .tdc-title {
+    color: darkgray !important;
+}
+
+.uxp-content-summary-column-more .close-btn {
+    filter: invert(1) !important;
+}
+
+ul.breadcrumb {
+   background: #3f3f3f !important;
+}
+
+.tab_container .popupmenu {
+    background-color: #000000; 
+    z-index: 100;
+   li:hover{ background-color:#787878;  }
+}
+.contentfield > table > tbody > tr > td.sidebar .sidebar_link_switch, .contentfield > table > tbody > tr > td.sidebar .sidebar_link {
+    background-color: #000000;
+}
+
+
+.sidebar_link_switch:hover{
+    background-color: #666666 !important;
+   color:#ffffff;
+}
+
+.sidebar_link:hover {
+    background-color: #666666 !important;
+color:#ffffff;
+}
+
+
+.calltoaction{
+     background-color: #071776;
+     border-radius: 5px;
+}
+
+.calltoaction:hover{
+     background-color: #39458e;
+}
+
+.qinfo .body-content .table_row {
+    color: #e9e9e9 !important;
+}
+.ui-datepicker-title{
+     color:#ffffff;
+}
+.ui-datepicker-calendar{
+    thead{
+        tr{
+          th{ 
+             color:#ffffff; 
+          }
+         .ui-datepicker-week-end{
+            color:#fa5f5f;
+          }
+        }
+    }
+}
+
+.box {
+    background-color: #424242 !important;
+    .box-header{
+      color: #ffffff !important;
+   }
+}
+.calseldates {
+    color: #e5ff3d !important;
+    background-color: #844c4c !important;
+}
+.calseldates:hover {
+    background-color: #b34444 !important;
+}
+.grid3.grid3-c .gridmain .fieldlist-vertical-content .nodata.label.hasDatepicker {
+    border: 1px solid white !important;
+}
+.table-bordered {
+    color: #b8b8b8;
+}
+.VeryfyText{
+    color: #b8b8b8;
+}
+
+
+
+.weather_widget .weather-content h4 span {
+    color: red !important;
+}
+
+.widget-container-block .layout .layout-item {
+    background-color: #ff2020 !important;
+}
+
+.grid3.grid3-c .gridmain .content>.fieldgroup {
+    border: none !important;
+}
+
+.mg-item {
+background-color: #2b2b2a !important;
+}
+.grid3.grid3-c .gridmain .sidebar {
+   width: 300px !important;
+}
+
+.tabpage {
+background-color: #2b2b2a !important;
+}
+
+.actionlayer .header {
+    background-color: #f0ffff00 !important;
+}
+.grid3.grid3-c .gridmain .fieldlist-vertical-content .field-label .dateunit, .grid3.grid3-c .gridmain .fieldlist-vertical-content .field-label .foid, .grid3.grid3-c .gridmain .fieldlist-vertical-content span.textfield_long .dateunit, .grid3.grid3-c .gridmain .fieldlist-vertical-content span.textfield_long .foid, .grid3.grid3-c .gridmain .fieldlist-vertical-content div.use-parent-visibility .dateunit, .grid3.grid3-c .gridmain .fieldlist-vertical-content div.use-parent-visibility .foid, .grid3.grid3-c .gridmain .fieldlist-vertical-content span.use-parent-visibility .dateunit, .grid3.grid3-c .gridmain .fieldlist-vertical-content span.use-parent-visibility .foid, .grid3.grid3-c .gridmain .fieldlist-vertical-content>span.nodata .dateunit, .grid3.grid3-c .gridmain .fieldlist-vertical-content>span.nodata .foid, .grid3.grid3-c .gridmain .fieldlist-vertical-content>span .nodata .dateunit, .grid3.grid3-c .gridmain .fieldlist-vertical-content>span .nodata .foid, .grid3.grid3-c .gridmain .fieldlist-vertical-content .field-select .dateunit, .grid3.grid3-c .gridmain .fieldlist-vertical-content .field-select .foid {
+color: white !important;
+}
+
+.quickinfo.object_link_qi {
+    color: white !important;
+}
+.grid3.grid3-c .gridmain .fieldlist-vertical-content .field-label>span, .grid3.grid3-c .gridmain .fieldlist-vertical-content span.textfield_long>span, .grid3.grid3-c .gridmain .fieldlist-vertical-content div.use-parent-visibility>span, .grid3.grid3-c .gridmain .fieldlist-vertical-content span.use-parent-visibility>span, .grid3.grid3-c .gridmain .fieldlist-vertical-content>span.nodata>span, .grid3.grid3-c .gridmain .fieldlist-vertical-content>span .nodata>span, .grid3.grid3-c .gridmain .fieldlist-vertical-content .field-select>span {
+    color: #ffffff !important;
+}
+.fieldlist-vertical-content
+{
+    font-size: 15px !important;
+}
+table.fieldlist tr.fieldlist-row td.fieldlist-name {
+    width: unset !important;
+}
+
+.grid3.grid3-c .gridmain .fieldlist-section-title {
+color: #ffffff !important;
+border-bottom: 1px solid #767676 !important;
+}
+.fieldgroup-header .titletext:not(:empty) {
+    margin-top: 15px;
+}
