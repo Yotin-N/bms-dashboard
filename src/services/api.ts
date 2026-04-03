@@ -41,13 +41,13 @@ async function fetchJson<T>(url: string): Promise<T> {
 export const api = {
   /** Get mapping status summary */
   getMappingStatus(): Promise<MappingStatusSummary> {
-    return fetchJson(`${API_BASE}/trend/mapping-status`);
+    return fetchJson(`${API_BASE}/bms/api/trend/mapping-status`);
   },
 
   /** Get all point snapshots, optionally filtered by status */
   getAllPoints(status?: string): Promise<PointSnapshot[]> {
     const params = status ? `?status=${status}` : "";
-    return fetchJson(`${API_BASE}/trend/all-points${params}`);
+    return fetchJson(`${API_BASE}/bms/api/trend/all-points${params}`);
   },
 
   /** Get trend history by displayName */
@@ -61,7 +61,7 @@ export const api = {
     if (endDate) params.set("endDate", endDate);
     const qs = params.toString() ? `?${params.toString()}` : "";
     return fetchJson(
-      `${API_BASE}/trend/history/${encodeURIComponent(displayName)}${qs}`,
+      `${API_BASE}/bms/api/trend/history/${encodeURIComponent(displayName)}${qs}`,
     );
   },
 
@@ -75,13 +75,15 @@ export const api = {
     if (startDate) params.set("startDate", startDate);
     if (endDate) params.set("endDate", endDate);
     const qs = params.toString() ? `?${params.toString()}` : "";
-    return fetchJson(`${API_BASE}/trend/history/point/${pointKey}${qs}`);
+    return fetchJson(
+      `${API_BASE}/bms/api/trend/history/point/${pointKey}${qs}`,
+    );
   },
 
   /** Get latest snapshot for a single point */
   getSnapshot(displayName: string): Promise<PointSnapshot> {
     return fetchJson(
-      `${API_BASE}/trend/snapshot/${encodeURIComponent(displayName)}`,
+      `${API_BASE}/bms/api/trend/snapshot/${encodeURIComponent(displayName)}`,
     );
   },
 };

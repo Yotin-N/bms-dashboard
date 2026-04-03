@@ -2,7 +2,7 @@ import { useRef, useMemo, useCallback, useState, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ArrowUpDown, ArrowUp, ArrowDown, Download, FilterX,
-  Filter, Search, SlidersHorizontal, ChevronDown, X,
+  Filter, Search, SlidersHorizontal, ChevronDown, X, Paperclip, MessageSquareMore, Info,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useBmsStore } from "../store/bmsStore";
@@ -11,24 +11,38 @@ import type { PointData } from "../types/bms";
 import type { SegmentKey } from "../types/bms";
 import type { SortableColumn, SortDirection } from "../store/bmsStore";
 
-const ROW_HEIGHT = 44;
-const GRID_COLS = "grid-cols-[1.8fr_2.2fr_1.5fr_70px_80px_80px_70px_80px_80px]";
+const ROW_HEIGHT = 52;
+const GRID_TEMPLATE_COLUMNS =
+  "minmax(210px, 1.18fr) minmax(260px, 1.32fr) minmax(150px, 0.78fr) minmax(120px, 0.68fr) 46px 72px 72px 64px 82px 104px";
+const DUMMY_SERIAL_NUMBER = "540250261088";
+
+interface RemarkLogEntry {
+  id: string;
+  message: string;
+  user: string;
+  createdAt: string;
+}
+
+function createDummyRemarkLogs(point: PointData, index: number): RemarkLogEntry[] {
+  return [
+    {
+      id: `${point.displayName}-log-1`,
+      message: `Field check opened for ${point.template || "point"} verification.`,
+      user: index % 2 === 0 ? "PM Aor" : "Eng Beam",
+      createdAt: "2026-04-03T08:15:00Z",
+    },
+    {
+      id: `${point.displayName}-log-2`,
+      message: index % 3 === 0
+        ? "Photo evidence requested from site team."
+        : "Waiting for confirmation against field meter label.",
+      user: index % 2 === 0 ? "Tech Nop" : "Tech Palm",
+      createdAt: "2026-04-03T10:40:00Z",
+    },
+  ];
+}
 
 /* ── Cell Helpers ────────────────────────────────────── */
-
-function StatusBadge({ status }: { status: string }) {
-  const config: Record<string, { light: string; dark: string }> = {
-    MATCHED: { light: "bg-slate-100 text-slate-600", dark: "dark:bg-slate-500/8 dark:text-slate-300" },
-    MISMATCH: { light: "bg-slate-100 text-slate-600", dark: "dark:bg-slate-500/8 dark:text-slate-300" },
-    N4_ONLY: { light: "bg-orange-50 text-orange-600", dark: "dark:bg-orange-500/8 dark:text-orange-300" },
-  };
-  const c = config[status] || { light: "bg-slate-100 text-slate-600", dark: "dark:bg-slate-500/8 dark:text-slate-300" };
-  return (
-    <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${c.light} ${c.dark}`}>
-      {status}
-    </span>
-  );
-}
 
 function N4StatusDot({ status }: { status: string | null }) {
   if (!status) return <span className="text-slate-400 dark:text-slate-600 text-xs">—</span>;
@@ -39,6 +53,28 @@ function N4StatusDot({ status }: { status: string | null }) {
       <span className={`text-[11px] ${isOk ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>{status}</span>
     </span>
   );
+}
+
+function getDiffValue(point: PointData): number | null {
+  if (point.n4Val == null || point.ivivaVal == null) return null;
+  const n4Num = parseFloat(point.n4Val);
+  const ivNum = parseFloat(point.ivivaVal);
+  if (isNaN(n4Num) || isNaN(ivNum)) return null;
+  return n4Num - ivNum;
+}
+
+function getDiffDisplay(point: PointData): string {
+  if (point.n4Val == null || point.ivivaVal == null) return "—";
+  const n4Num = parseFloat(point.n4Val);
+  const ivNum = parseFloat(point.ivivaVal);
+  if (isNaN(n4Num) || isNaN(ivNum)) {
+    const same = point.n4Val === point.ivivaVal;
+    return same ? "=" : "≠";
+  }
+  const diff = n4Num - ivNum;
+  const absDiff = Math.abs(diff);
+  const display = absDiff < 0.001 ? "0" : (diff > 0 ? "+" : "") + diff.toFixed(2);
+  return display;
 }
 
 function DiffCell({ n4Val, ivivaVal }: { n4Val: string | null; ivivaVal: string | null }) {
@@ -68,6 +104,141 @@ function DiffCell({ n4Val, ivivaVal }: { n4Val: string | null; ivivaVal: string 
   );
 }
 
+function formatLogTime(timestamp: string) {
+  return new Date(timestamp).toLocaleString([], {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function PointDetailModal({
+  point,
+  remarks,
+  attachmentCount,
+  onClose,
+}: {
+  point: PointData;
+  remarks: RemarkLogEntry[];
+  attachmentCount: number;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 px-4 backdrop-blur-[2px]">
+      <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+          <div>
+            <h3 className="mt-1 text-base font-semibold text-slate-900 dark:text-slate-100">
+              {point.indexCode}
+            </h3>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {point.template || "—"} · SN {DUMMY_SERIAL_NUMBER}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+
+        <div className="px-5 py-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="text-[11px] font-medium tracking-[0.14em] text-slate-500 dark:text-slate-400">
+              Remark Logs
+            </div>
+            <div className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+              {remarks.length} log{remarks.length !== 1 ? "s" : ""}
+            </div>
+          </div>
+
+          <div className="max-h-[320px] space-y-2 overflow-auto">
+            {remarks.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 px-4 py-6 text-center text-[12px] text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                No remarks yet for this point.
+              </div>
+            ) : (
+              remarks.map((log) => (
+                <div
+                  key={log.id}
+                  className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-800 dark:bg-slate-800/40"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[12px] font-semibold text-slate-800 dark:text-slate-100">{log.user}</span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">{formatLogTime(log.createdAt)}</span>
+                  </div>
+                  <p className="mt-1 text-[12px] leading-5 text-slate-600 dark:text-slate-300">{log.message}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PointActionsCell({
+  point,
+  remarkCount,
+  attachmentCount,
+  onOpenLogs,
+  onUploadFile,
+}: {
+  point: PointData;
+  remarkCount: number;
+  attachmentCount: number;
+  onOpenLogs: () => void;
+  onUploadFile: (file: File) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  return (
+    <div className="flex items-center justify-center gap-1.5">
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        className="relative flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
+        title={`Upload image for ${point.displayName}`}
+      >
+        <Paperclip className="h-3.5 w-3.5" />
+        {attachmentCount > 0 && (
+          <span className="absolute -right-1 -top-1 min-w-[15px] rounded-full bg-slate-900 px-1 text-center text-[9px] font-semibold text-white dark:bg-slate-100 dark:text-slate-900">
+            {attachmentCount}
+          </span>
+        )}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) onUploadFile(file);
+          event.currentTarget.value = "";
+        }}
+      />
+
+      <button
+        type="button"
+        onClick={onOpenLogs}
+        className="relative flex h-6 min-w-[34px] items-center justify-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
+        title={`Open remarks for ${point.displayName}`}
+      >
+        <MessageSquareMore className="h-3.5 w-3.5" />
+        <span className="text-[9px] font-semibold tabular-nums">{remarkCount}</span>
+      </button>
+    </div>
+  );
+}
+
 /* ── Column Filter Dropdown (multi-select) ───────────── */
 
 function ColumnFilterDropdown({
@@ -86,6 +257,16 @@ function ColumnFilterDropdown({
 
   const selected = columnFilters[column];
   const isActive = selected.size > 0;
+  const dropdownWidthClass =
+    column === "indexCode"
+      ? "w-72"
+      : column === "displayName"
+        ? "w-80"
+        : "w-48";
+  const dropdownPositionClass =
+    column === "indexCode" || column === "displayName"
+      ? "left-0"
+      : "left-1/2 -translate-x-1/2";
 
   useEffect(() => {
     function handle(e: MouseEvent) {
@@ -101,7 +282,12 @@ function ColumnFilterDropdown({
   const uniqueValues = useMemo(() => {
     const vals = new Set<string>();
     for (const p of allPoints) {
-      const v = p[column];
+      let v: string | null;
+      if (column === "diff") {
+        v = getDiffDisplay(p);
+      } else {
+        v = p[column];
+      }
       if (v != null && v !== "") vals.add(String(v));
     }
     return [...vals].sort();
@@ -117,7 +303,7 @@ function ColumnFilterDropdown({
         onClick={() => setOpen(!open)}
         className={`p-0.5 rounded transition-colors ${
           isActive
-            ? "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/20"
+            ? "text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-700/70"
             : "text-slate-400 dark:text-slate-600 hover:text-slate-600 dark:hover:text-slate-400"
         }`}
         title={isActive ? `${selected.size} selected` : "Filter"}
@@ -125,7 +311,7 @@ function ColumnFilterDropdown({
         <Filter className="w-2.5 h-2.5" />
       </button>
       {open && (
-        <div className="absolute z-50 top-full mt-1 left-1/2 -translate-x-1/2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl shadow-black/10 dark:shadow-black/40">
+        <div className={`absolute z-50 top-full mt-1 ${dropdownPositionClass} ${dropdownWidthClass} bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl shadow-black/10 dark:shadow-black/40`}>
           <div className="p-1.5">
             <input
               type="text"
@@ -133,7 +319,7 @@ function ColumnFilterDropdown({
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search..."
               autoFocus
-              className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[11px] text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-blue-500/50"
+              className="w-full px-2 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-[11px] text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-300 dark:focus:border-slate-600"
             />
           </div>
           {isActive && (
@@ -174,8 +360,8 @@ function ColumnFilterDropdown({
 
 function SortIcon({ column, sortColumn, sortDirection }: { column: SortableColumn; sortColumn: SortableColumn | null; sortDirection: SortDirection }) {
   if (sortColumn !== column) return <ArrowUpDown className="w-2.5 h-2.5 text-slate-400 dark:text-slate-600" />;
-  if (sortDirection === "asc") return <ArrowUp className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400" />;
-  return <ArrowDown className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400" />;
+  if (sortDirection === "asc") return <ArrowUp className="w-2.5 h-2.5 text-slate-700 dark:text-slate-200" />;
+  return <ArrowDown className="w-2.5 h-2.5 text-slate-700 dark:text-slate-200" />;
 }
 
 function ColumnHeader({
@@ -200,7 +386,7 @@ function ColumnHeader({
       <button
         onClick={() => toggleSort(column)}
         className={`flex items-center gap-0.5 text-[10px] font-semibold tracking-wider hover:text-slate-700 dark:hover:text-slate-200 transition-colors ${
-          sortColumn === column ? "text-blue-600 dark:text-blue-400" : "text-slate-500 dark:text-slate-400"
+          sortColumn === column ? "text-slate-700 dark:text-slate-200" : "text-slate-500 dark:text-slate-400"
         }`}
       >
         {label}
@@ -241,18 +427,18 @@ function SegmentDropdown({
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-all whitespace-nowrap ${
+        className={`flex h-8 items-center gap-1 px-2 rounded-md text-[11px] font-medium transition-all whitespace-nowrap ${
           active
-            ? "bg-blue-50 dark:bg-blue-600/15 border border-blue-300 dark:border-blue-500/40 text-blue-700 dark:text-blue-300"
+            ? "bg-slate-100 dark:bg-slate-700/70 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200"
             : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 hover:text-slate-700 dark:hover:text-slate-300"
         }`}
       >
         <span className="text-slate-400 dark:text-slate-500">{label}</span>
         {active ? (
           <>
-            <span className="px-1 rounded bg-blue-100 dark:bg-blue-600/25 text-blue-700 dark:text-blue-200 text-[10px] font-semibold">{value}</span>
+            <span className="px-1 rounded bg-slate-200 dark:bg-slate-600/80 text-slate-700 dark:text-slate-100 text-[10px] font-semibold">{value}</span>
             <X
-              className="w-3 h-3 text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-200"
+              className="w-3 h-3 text-slate-500 dark:text-slate-300 hover:text-slate-700 dark:hover:text-white"
               onClick={(e) => { e.stopPropagation(); onChange(null); }}
             />
           </>
@@ -265,7 +451,7 @@ function SegmentDropdown({
           <button
             onClick={() => { onChange(null); setOpen(false); }}
             className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${
-              !active ? "bg-blue-50 dark:bg-blue-600/15 text-blue-700 dark:text-blue-300" : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200"
+              !active ? "bg-slate-100 dark:bg-slate-700/70 text-slate-700 dark:text-slate-200" : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200"
             }`}
           >
             All
@@ -277,7 +463,7 @@ function SegmentDropdown({
               onClick={() => { onChange(opt); setOpen(false); }}
               className={`w-full text-left px-3 py-1.5 text-xs font-mono transition-colors ${
                 value === opt
-                  ? "bg-blue-50 dark:bg-blue-600/15 text-blue-700 dark:text-blue-300 font-semibold"
+                  ? "bg-slate-100 dark:bg-slate-700/70 text-slate-700 dark:text-slate-200 font-semibold"
                   : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-slate-100"
               }`}
             >
@@ -295,6 +481,16 @@ function SegmentDropdown({
 function comparePoints(a: PointData, b: PointData, column: SortableColumn, direction: SortDirection): number {
   if (!direction) return 0;
   const mul = direction === "asc" ? 1 : -1;
+
+  if (column === "diff") {
+    const aDiff = getDiffValue(a);
+    const bDiff = getDiffValue(b);
+    if (aDiff === null && bDiff === null) return 0;
+    if (aDiff === null) return 1 * mul;
+    if (bDiff === null) return -1 * mul;
+    return (aDiff - bDiff) * mul;
+  }
+
   const aVal = a[column] ?? "";
   const bVal = b[column] ?? "";
   if (column === "n4Val" || column === "ivivaVal") {
@@ -314,11 +510,11 @@ function exportToExcel(points: PointData[]) {
     "Index Code": p.indexCode || "",
     "Display Name": p.displayName,
     "Point Name": p.template || "",
+    SN: DUMMY_SERIAL_NUMBER,
     "Units": p.units || "",
     "BMS": p.n4Val || "",
     "IVIVA": p.ivivaVal || "",
     "Status": p.n4Status || "",
-    "Mapping Status": p.mappingStatus,
   }));
 
   // Bangkok timestamp (UTC+7)
@@ -366,6 +562,12 @@ export function PointsTable() {
   const sortDirection = useBmsStore((s) => s.sortDirection);
   const clearAllColumnFilters = useBmsStore((s) => s.clearAllColumnFilters);
   const showFaultPointsOnly = useBmsStore((s) => s.showFaultPointsOnly);
+  const remarkLogsByPoint = useMemo<Record<string, RemarkLogEntry[]>>(
+    () => Object.fromEntries(pointList.map((point, index) => [point.displayName, createDummyRemarkLogs(point, index)])),
+    [pointList]
+  );
+  const [attachmentCountByPoint, setAttachmentCountByPoint] = useState<Record<string, number>>({});
+  const [activePoint, setActivePoint] = useState<PointData | null>(null);
 
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -413,7 +615,12 @@ export function PointsTable() {
     for (const [col, selectedSet] of Object.entries(columnFilters)) {
       if (selectedSet.size === 0) continue;
       result = result.filter((p) => {
-        const cellVal = String(p[col as keyof PointData] ?? "");
+        let cellVal: string;
+        if (col === "diff") {
+          cellVal = getDiffDisplay(p);
+        } else {
+          cellVal = String(p[col as keyof PointData] ?? "");
+        }
         return selectedSet.has(cellVal);
       });
     }
@@ -435,8 +642,11 @@ export function PointsTable() {
   const handleExport = useCallback(() => {
     exportToExcel(filteredPoints);
   }, [filteredPoints]);
+  const activeRemarks = activePoint ? remarkLogsByPoint[activePoint.displayName] || [] : [];
+  const activeAttachmentCount = activePoint ? attachmentCountByPoint[activePoint.displayName] || 0 : 0;
 
   return (
+    <>
     <div className="flex flex-col flex-1 border border-slate-200 dark:border-slate-700/50 rounded-xl overflow-hidden bg-white dark:bg-slate-900/50">
       {/* Toolbar: Search + Segments + Actions */}
       <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700/50 flex-wrap">
@@ -448,7 +658,7 @@ export function PointsTable() {
             placeholder="Search indexCode, displayName..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-7 pr-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-[11px] text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50"
+            className="h-8 w-full pl-7 pr-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-[11px] text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-200 dark:focus:ring-slate-700 focus:border-slate-300 dark:focus:border-slate-600"
           />
         </div>
 
@@ -469,7 +679,7 @@ export function PointsTable() {
         {activeSegCount > 0 && (
           <button
             onClick={clearSegmentFilters}
-            className="flex items-center gap-1 px-1.5 py-1 rounded text-[11px] text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+            className="flex h-8 items-center gap-1 px-2 rounded-md text-[11px] font-medium text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
           >
             <X className="w-3 h-3" />
             Clear
@@ -489,7 +699,7 @@ export function PointsTable() {
         {hasColumnFilters && (
           <button
             onClick={clearAllColumnFilters}
-            className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+            className="flex h-8 items-center gap-1 px-2 rounded-md text-[11px] font-medium text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
           >
             <FilterX className="w-3 h-3" />
             Filters ({totalActiveFilters})
@@ -499,7 +709,7 @@ export function PointsTable() {
         <button
           onClick={handleExport}
           disabled={filteredPoints.length === 0}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium bg-blue-50 dark:bg-blue-600/15 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30 hover:bg-blue-100 dark:hover:bg-blue-600/25 hover:border-blue-300 dark:hover:border-blue-500/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex h-8 items-center gap-1.5 px-3 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200/70 hover:border-slate-300 dark:bg-slate-800/80 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700/80 dark:hover:border-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Download className="w-3.5 h-3.5" />
           Export Excel
@@ -507,16 +717,24 @@ export function PointsTable() {
       </div>
 
       {/* Table Header: sort labels + filter icons */}
-      <div className={`grid ${GRID_COLS} gap-2 px-4 py-1.5 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700/50`}>
+      <div
+        className="grid gap-1.5 border-b border-slate-200 bg-slate-50 px-3 py-1.5 dark:border-slate-700/50 dark:bg-slate-800/50"
+        style={{ gridTemplateColumns: GRID_TEMPLATE_COLUMNS }}
+      >
         <ColumnHeader label="Index Code" column="indexCode" allPoints={pointList} />
         <ColumnHeader label="Display Name" column="displayName" allPoints={pointList} />
         <ColumnHeader label="Point Name" column="template" allPoints={pointList} />
+        <div className="flex items-center text-[10px] font-semibold tracking-wider text-slate-500 dark:text-slate-400">
+          SN
+        </div>
         <ColumnHeader label="Units" column="units" align="center" allPoints={pointList} />
         <ColumnHeader label="BMS" column="n4Val" align="center" allPoints={pointList} />
         <ColumnHeader label="IVIVA" column="ivivaVal" align="center" allPoints={pointList} />
-        <div className="flex items-center justify-center text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Diff</div>
+        <ColumnHeader label="Diff" column="diff" align="center" allPoints={pointList} />
         <ColumnHeader label="Status" column="n4Status" align="center" allPoints={pointList} />
-        <ColumnHeader label="Mapping" column="mappingStatus" align="center" allPoints={pointList} />
+        <div className="flex items-center justify-center text-[10px] font-semibold tracking-wider text-slate-500 dark:text-slate-400">
+          Remarks / Files
+        </div>
       </div>
 
       {/* Virtualized Rows */}
@@ -537,14 +755,21 @@ export function PointsTable() {
               const point: PointData = filteredPoints[virtualRow.index];
               const isChanged = changedKeys.has(point.displayName);
               const isEven = virtualRow.index % 2 === 0;
+              const isFault = !!point.n4Status && point.n4Status !== "ok" && point.n4Status !== "OK";
+              const leftBorderClass = isFault
+                ? "border-l-4 border-l-red-500 dark:border-l-red-400"
+                : point.mappingStatus === "N4_ONLY"
+                  ? "border-l-4 border-l-orange-500 dark:border-l-orange-400"
+                  : "border-l-4 border-l-transparent";
 
               return (
                 <div
                   key={point.displayName}
-                  className={`grid ${GRID_COLS} gap-2 px-4 items-center border-b border-slate-100 dark:border-slate-800/30 text-sm ${
+                  className={`grid gap-1.5 px-3 items-center border-b border-slate-100 dark:border-slate-800/30 text-sm ${
                     isChanged ? "row-flash" : ""
-                  } ${isEven ? "bg-slate-50/50 dark:bg-slate-900/30" : "bg-transparent"} hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors`}
+                  } ${isEven ? "bg-slate-50/50 dark:bg-slate-900/30" : "bg-transparent"} ${leftBorderClass} hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors`}
                   style={{
+                    gridTemplateColumns: GRID_TEMPLATE_COLUMNS,
                     position: "absolute",
                     top: 0,
                     left: 0,
@@ -562,6 +787,9 @@ export function PointsTable() {
                   <div className="text-slate-500 dark:text-slate-400 truncate text-[11px]" title={point.template || "—"}>
                     {point.template || "—"}
                   </div>
+                  <div className="truncate font-mono text-[11px] text-slate-700 dark:text-slate-200" title={DUMMY_SERIAL_NUMBER}>
+                    {DUMMY_SERIAL_NUMBER}
+                  </div>
                   <div className="text-slate-500 dark:text-slate-400 truncate text-[11px] text-center" title={point.units || "—"}>
                     {point.units || "—"}
                   </div>
@@ -576,7 +804,18 @@ export function PointsTable() {
                     <N4StatusDot status={point.n4Status} />
                   </div>
                   <div className="flex justify-center">
-                    <StatusBadge status={point.mappingStatus} />
+                    <PointActionsCell
+                      point={point}
+                      remarkCount={(remarkLogsByPoint[point.displayName] || []).length}
+                      attachmentCount={attachmentCountByPoint[point.displayName] || 0}
+                      onOpenLogs={() => setActivePoint(point)}
+                      onUploadFile={() =>
+                        setAttachmentCountByPoint((prev) => ({
+                          ...prev,
+                          [point.displayName]: (prev[point.displayName] || 0) + 1,
+                        }))
+                      }
+                    />
                   </div>
                 </div>
               );
@@ -585,5 +824,14 @@ export function PointsTable() {
         )}
       </div>
     </div>
+    {activePoint && (
+      <PointDetailModal
+        point={activePoint}
+        remarks={activeRemarks}
+        attachmentCount={activeAttachmentCount}
+        onClose={() => setActivePoint(null)}
+      />
+    )}
+    </>
   );
 }

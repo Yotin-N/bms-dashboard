@@ -101,3 +101,46 @@ body {
 .animate-pulse-dot {
   animation: pulse-dot 2s ease-in-out infinite;
 }
+
+.themed-datetime-input {
+  color-scheme: light;
+}
+
+.dark .themed-datetime-input {
+  color-scheme: dark;
+}
+
+.themed-datetime-input::-webkit-date-and-time-value {
+  min-height: 1.2em;
+  text-align: left;
+}
+
+.themed-datetime-input::-webkit-datetime-edit,
+.themed-datetime-input::-webkit-datetime-edit-fields-wrapper,
+.themed-datetime-input::-webkit-datetime-edit-text,
+.themed-datetime-input::-webkit-datetime-edit-month-field,
+.themed-datetime-input::-webkit-datetime-edit-day-field,
+.themed-datetime-input::-webkit-datetime-edit-year-field,
+.themed-datetime-input::-webkit-datetime-edit-hour-field,
+.themed-datetime-input::-webkit-datetime-edit-minute-field,
+.themed-datetime-input::-webkit-datetime-edit-second-field,
+.themed-datetime-input::-webkit-datetime-edit-ampm-field {
+  color: inherit;
+}
+
+.themed-datetime-input::-webkit-calendar-picker-indicator {
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.themed-datetime-input:hover::-webkit-calendar-picker-indicator,
+.themed-datetime-input:focus::-webkit-calendar-picker-indicator {
+  opacity: 0;
+}
+
+.dark .themed-datetime-input::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.4) saturate(0);
+  opacity: 0;
+}

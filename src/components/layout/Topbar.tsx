@@ -1,5 +1,8 @@
 import { Menu, UserCircle } from "lucide-react";
 import { useBmsStore } from "../../store/bmsStore";
+import oneBangkokLogo from "../../assets/one-bangkok-logo.png";
+
+const BANGKOK_TIME_ZONE = "Asia/Bangkok";
 
 interface TopbarProps {
   onMenuClick: () => void;
@@ -26,11 +29,11 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         >
           <Menu className="w-5 h-5" />
         </button>
-        <div>
-          <h1 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-            Dashboard
-          </h1>
-        </div>
+        <img
+          src={oneBangkokLogo}
+          alt="One Bangkok"
+          className="h-6 w-auto object-contain dark:invert dark:contrast-200 dark:opacity-95"
+        />
       </div>
 
       {/* Right: Status + Last update + User */}
@@ -46,12 +49,17 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         {/* Last Update */}
         {lastUpdate && (
           <span className="hidden md:inline text-xs text-slate-400 dark:text-slate-500">
-            Last: {new Date(lastUpdate).toLocaleTimeString()}
+            Last: {new Date(lastUpdate).toLocaleTimeString([], {
+              timeZone: BANGKOK_TIME_ZONE,
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            })}
           </span>
         )}
 
         {/* User Icon */}
-        <button className="p-1.5 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
+        <button className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/70 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
           <UserCircle className="w-6 h-6" />
         </button>
       </div>

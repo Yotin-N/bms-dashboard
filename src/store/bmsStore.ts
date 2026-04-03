@@ -17,6 +17,7 @@ export type SortableColumn =
   | "units"
   | "n4Val"
   | "ivivaVal"
+  | "diff"
   | "n4Status"
   | "mappingStatus";
 
@@ -85,6 +86,7 @@ function createEmptyColumnFilters(): ColumnFilterSets {
     units: new Set(),
     n4Val: new Set(),
     ivivaVal: new Set(),
+    diff: new Set(),
     n4Status: new Set(),
     mappingStatus: new Set(),
   };

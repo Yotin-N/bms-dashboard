@@ -35,7 +35,7 @@ export function AssetDetailPage() {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 font-mono">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
             {decodedIndexCode}
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -50,7 +50,7 @@ export function AssetDetailPage() {
       {/* Table */}
       <div className="flex flex-col flex-1 border border-slate-200 dark:border-slate-700/50 rounded-xl overflow-hidden bg-white dark:bg-slate-900/50">
         {/* Header */}
-        <div className="grid grid-cols-[1.5fr_1fr_80px_100px_100px_80px_70px_60px] gap-3 px-4 py-2 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700/50">
+        <div className="grid grid-cols-[1.5fr_1fr_80px_100px_100px_80px_70px_72px] gap-3 px-4 py-2 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700/50">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Display Name</span>
           <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Point Name</span>
           <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 text-center">Units</span>
@@ -71,13 +71,19 @@ export function AssetDetailPage() {
             points.map((point, i) => {
               const isChanged = changedKeys.has(point.displayName);
               const isOk = point.n4Status === "OK" || point.n4Status === "ok";
+              const isFault = !!point.n4Status && !isOk;
+              const leftBorderClass = isFault
+                ? "border-l-4 border-l-red-500 dark:border-l-red-400"
+                : point.mappingStatus === "N4_ONLY"
+                  ? "border-l-4 border-l-orange-500 dark:border-l-orange-400"
+                  : "border-l-4 border-l-transparent";
 
               return (
                 <div
                   key={point.displayName}
-                  className={`grid grid-cols-[1.5fr_1fr_80px_100px_100px_80px_70px_60px] gap-3 px-4 py-2.5 items-center border-b border-slate-100 dark:border-slate-800/30 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 ${
+                  className={`grid grid-cols-[1.5fr_1fr_80px_100px_100px_80px_70px_72px] gap-3 px-4 py-3 items-center border-b border-slate-100 dark:border-slate-800/30 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 ${
                     isChanged ? "row-flash" : ""
-                  } ${i % 2 === 0 ? "bg-slate-50/50 dark:bg-slate-900/30" : ""}`}
+                  } ${i % 2 === 0 ? "bg-slate-50/50 dark:bg-slate-900/30" : ""} ${leftBorderClass} py-3`}
                 >
                   <span
                     className="text-[11px] font-mono text-slate-800 dark:text-slate-200 truncate"
@@ -129,7 +135,7 @@ export function AssetDetailPage() {
                   <div className="flex justify-center">
                     <button
                       onClick={() => navigate(`/trend/${encodeURIComponent(point.displayName)}`)}
-                      className="p-1.5 rounded-md text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
+                      className="p-1.5 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
                       title="View trend"
                     >
                       <TrendingUp className="w-4 h-4" />

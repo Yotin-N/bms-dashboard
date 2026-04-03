@@ -33,42 +33,59 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   return (
     <aside
-      className={`fixed top-0 left-0 z-40 h-screen flex flex-col border-r transition-all duration-300 ease-in-out
+      className={`fixed top-0 left-0 z-40 flex h-screen flex-col overflow-hidden border-r transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
         bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800
-        ${collapsed ? "w-16" : "w-60"}`}
+        ${collapsed ? "w-14" : "w-60"}`}
     >
       {/* Logo */}
-      <div className="flex items-center gap-3 h-14 px-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600 shrink-0">
-          <Building2 className="w-4.5 h-4.5 text-white" />
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`flex shrink-0 border-b border-slate-200 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/60 ${
+          collapsed
+            ? "h-14 items-center justify-center px-0"
+            : "h-14 items-center gap-3 px-4 text-left"
+        }`}
+        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+      >
+        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-800 dark:bg-slate-700 shrink-0">
+          <Building2 className="w-4.5 h-4.5 text-white dark:text-slate-300" />
         </div>
-        {!collapsed && (
-          <span className="text-sm font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap overflow-hidden">
-            BMS Console
-          </span>
-        )}
-      </div>
+        <span
+          className={`overflow-hidden whitespace-nowrap text-sm font-bold text-slate-900 transition-all duration-200 dark:text-slate-100 ${
+            collapsed ? "max-w-0 opacity-0" : "max-w-[140px] opacity-100"
+          }`}
+        >
+          BMS Console
+        </span>
+      </button>
 
       {/* Navigation */}
-      <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
+      <nav className="flex-1 space-y-2 overflow-x-hidden overflow-y-auto px-2 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.label}
             to={item.to}
             end={item.to === "/"}
             className={({ isActive }) =>
-              `flex items-center gap-3 w-full rounded-lg text-sm font-medium transition-colors
-              ${collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5"}
+              `flex items-center text-sm font-medium transition-colors
+              ${collapsed ? "mx-auto h-10 w-10 justify-center rounded-xl px-0 py-0" : "w-full gap-3 rounded-lg px-3 py-2.5"}
               ${
                 isActive
-                  ? "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400"
-                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200"
+                  ? "bg-slate-100 text-slate-900 dark:bg-slate-800/80 dark:text-slate-100"
+                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-slate-200"
               }`
             }
             title={collapsed ? item.label : undefined}
           >
             <span className="shrink-0">{item.icon}</span>
-            {!collapsed && <span className="truncate">{item.label}</span>}
+            <span
+              className={`overflow-hidden whitespace-nowrap transition-all duration-200 ${
+                collapsed ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100"
+              }`}
+            >
+              {item.label}
+            </span>
           </NavLink>
         ))}
       </nav>
@@ -78,29 +95,41 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         {/* Theme Toggle */}
         <button
           onClick={toggleTheme}
-          className={`flex items-center gap-3 w-full rounded-lg text-sm font-medium transition-colors
-            ${collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5"}
-            text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200`}
+          className={`flex items-center text-sm font-medium transition-colors
+            ${collapsed ? "mx-auto h-10 w-10 justify-center rounded-xl px-0 py-0" : "w-full gap-3 rounded-lg px-3 py-2.5"}
+            text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-slate-200`}
           title={collapsed ? (theme === "dark" ? "Light mode" : "Dark mode") : undefined}
         >
           <span className="shrink-0">
             {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </span>
-          {!collapsed && <span className="truncate">{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>}
+          <span
+            className={`overflow-hidden whitespace-nowrap transition-all duration-200 ${
+              collapsed ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100"
+            }`}
+          >
+            {theme === "dark" ? "Light Mode" : "Dark Mode"}
+          </span>
         </button>
 
         {/* Collapse Toggle */}
         <button
           onClick={onToggle}
-          className={`flex items-center gap-3 w-full rounded-lg text-sm font-medium transition-colors
-            ${collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5"}
-            text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200`}
+          className={`flex items-center text-sm font-medium transition-colors
+            ${collapsed ? "mx-auto h-10 w-10 justify-center rounded-xl px-0 py-0" : "w-full gap-3 rounded-lg px-3 py-2.5"}
+            text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-slate-200`}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           <span className="shrink-0">
             {collapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
           </span>
-          {!collapsed && <span className="truncate">Collapse</span>}
+          <span
+            className={`overflow-hidden whitespace-nowrap transition-all duration-200 ${
+              collapsed ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100"
+            }`}
+          >
+            Collapse
+          </span>
         </button>
       </div>
     </aside>
