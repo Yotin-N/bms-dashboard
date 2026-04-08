@@ -1,45 +1,40 @@
 import { useRef, useMemo, useCallback, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ArrowUpDown, ArrowUp, ArrowDown, Download, FilterX,
-  Filter, Search, SlidersHorizontal, ChevronDown, X, Paperclip, MessageSquareMore, Info,
+  Filter, Search, SlidersHorizontal, ChevronDown, X,
 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { useAuth } from "../auth/AuthProvider";
+import { api, ApiError, type AttachmentRecord, type RemarkLogRecord } from "../services/api";
 import { useBmsStore } from "../store/bmsStore";
 import { SEGMENT_LABELS, parseSegments } from "../types/bms";
 import type { PointData } from "../types/bms";
 import type { SegmentKey } from "../types/bms";
 import type { SortableColumn, SortDirection } from "../store/bmsStore";
+import {
+  PointResourceActionsCell,
+  PointResourceModal,
+} from "./point-resources/PointResourceUI";
 
 const ROW_HEIGHT = 52;
 const GRID_TEMPLATE_COLUMNS =
   "minmax(210px, 1.18fr) minmax(260px, 1.32fr) minmax(150px, 0.78fr) minmax(120px, 0.68fr) 46px 72px 72px 64px 82px 104px";
 const DUMMY_SERIAL_NUMBER = "540250261088";
 
-interface RemarkLogEntry {
-  id: string;
-  message: string;
-  user: string;
-  createdAt: string;
-}
+function getApiErrorMessage(error: unknown) {
+  if (error instanceof ApiError) {
+    return error.requestId
+      ? `${error.message} (req: ${error.requestId})`
+      : error.message;
+  }
 
-function createDummyRemarkLogs(point: PointData, index: number): RemarkLogEntry[] {
-  return [
-    {
-      id: `${point.displayName}-log-1`,
-      message: `Field check opened for ${point.template || "point"} verification.`,
-      user: index % 2 === 0 ? "PM Aor" : "Eng Beam",
-      createdAt: "2026-04-03T08:15:00Z",
-    },
-    {
-      id: `${point.displayName}-log-2`,
-      message: index % 3 === 0
-        ? "Photo evidence requested from site team."
-        : "Waiting for confirmation against field meter label.",
-      user: index % 2 === 0 ? "Tech Nop" : "Tech Palm",
-      createdAt: "2026-04-03T10:40:00Z",
-    },
-  ];
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Something went wrong while talking to the server.";
 }
 
 /* ── Cell Helpers ────────────────────────────────────── */
@@ -48,9 +43,14 @@ function N4StatusDot({ status }: { status: string | null }) {
   if (!status) return <span className="text-slate-400 dark:text-slate-600 text-xs">—</span>;
   const isOk = status === "OK" || status === "ok";
   return (
-    <span className="flex items-center gap-1.5">
-      <span className={`w-1.5 h-1.5 rounded-full ${isOk ? "bg-emerald-500 dark:bg-emerald-400" : "bg-red-500 dark:bg-red-400"}`} />
-      <span className={`text-[11px] ${isOk ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>{status}</span>
+    <span
+      className={`text-[11px] ${
+        isOk
+          ? "text-slate-600 dark:text-slate-300"
+          : "text-red-600 dark:text-red-400"
+      }`}
+    >
+      {status}
     </span>
   );
 }
@@ -100,141 +100,6 @@ function DiffCell({ n4Val, ivivaVal }: { n4Val: string | null; ivivaVal: string 
   return (
     <div className={`text-center font-mono text-xs tabular-nums ${color}`} title={`N4(${n4Val}) - IVIVA(${ivivaVal})`}>
       {display}
-    </div>
-  );
-}
-
-function formatLogTime(timestamp: string) {
-  return new Date(timestamp).toLocaleString([], {
-    timeZone: "Asia/Bangkok",
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function PointDetailModal({
-  point,
-  remarks,
-  attachmentCount,
-  onClose,
-}: {
-  point: PointData;
-  remarks: RemarkLogEntry[];
-  attachmentCount: number;
-  onClose: () => void;
-}) {
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 px-4 backdrop-blur-[2px]">
-      <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
-          <div>
-            <h3 className="mt-1 text-base font-semibold text-slate-900 dark:text-slate-100">
-              {point.indexCode}
-            </h3>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              {point.template || "—"} · SN {DUMMY_SERIAL_NUMBER}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-
-        <div className="px-5 py-4">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div className="text-[11px] font-medium tracking-[0.14em] text-slate-500 dark:text-slate-400">
-              Remark Logs
-            </div>
-            <div className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-              {remarks.length} log{remarks.length !== 1 ? "s" : ""}
-            </div>
-          </div>
-
-          <div className="max-h-[320px] space-y-2 overflow-auto">
-            {remarks.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 px-4 py-6 text-center text-[12px] text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                No remarks yet for this point.
-              </div>
-            ) : (
-              remarks.map((log) => (
-                <div
-                  key={log.id}
-                  className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-800 dark:bg-slate-800/40"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-[12px] font-semibold text-slate-800 dark:text-slate-100">{log.user}</span>
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400">{formatLogTime(log.createdAt)}</span>
-                  </div>
-                  <p className="mt-1 text-[12px] leading-5 text-slate-600 dark:text-slate-300">{log.message}</p>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PointActionsCell({
-  point,
-  remarkCount,
-  attachmentCount,
-  onOpenLogs,
-  onUploadFile,
-}: {
-  point: PointData;
-  remarkCount: number;
-  attachmentCount: number;
-  onOpenLogs: () => void;
-  onUploadFile: (file: File) => void;
-}) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
-
-  return (
-    <div className="flex items-center justify-center gap-1.5">
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className="relative flex h-6 w-6 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-        title={`Upload image for ${point.displayName}`}
-      >
-        <Paperclip className="h-3.5 w-3.5" />
-        {attachmentCount > 0 && (
-          <span className="absolute -right-1 -top-1 min-w-[15px] rounded-full bg-slate-900 px-1 text-center text-[9px] font-semibold text-white dark:bg-slate-100 dark:text-slate-900">
-            {attachmentCount}
-          </span>
-        )}
-      </button>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) onUploadFile(file);
-          event.currentTarget.value = "";
-        }}
-      />
-
-      <button
-        type="button"
-        onClick={onOpenLogs}
-        className="relative flex h-6 min-w-[34px] items-center justify-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-        title={`Open remarks for ${point.displayName}`}
-      >
-        <MessageSquareMore className="h-3.5 w-3.5" />
-        <span className="text-[9px] font-semibold tabular-nums">{remarkCount}</span>
-      </button>
     </div>
   );
 }
@@ -548,6 +413,8 @@ function exportToExcel(points: PointData[]) {
 /* ── Main Table Component ────────────────────────────── */
 
 export function PointsTable() {
+  const { accessToken, user } = useAuth();
+  const navigate = useNavigate();
   const pointList = useBmsStore((s) => s.pointList);
   const filter = useBmsStore((s) => s.filter);
   const searchQuery = useBmsStore((s) => s.searchQuery);
@@ -562,12 +429,17 @@ export function PointsTable() {
   const sortDirection = useBmsStore((s) => s.sortDirection);
   const clearAllColumnFilters = useBmsStore((s) => s.clearAllColumnFilters);
   const showFaultPointsOnly = useBmsStore((s) => s.showFaultPointsOnly);
-  const remarkLogsByPoint = useMemo<Record<string, RemarkLogEntry[]>>(
-    () => Object.fromEntries(pointList.map((point, index) => [point.displayName, createDummyRemarkLogs(point, index)])),
-    [pointList]
-  );
-  const [attachmentCountByPoint, setAttachmentCountByPoint] = useState<Record<string, number>>({});
+  const [summaryByPoint, setSummaryByPoint] = useState<
+    Record<string, { remarkCount: number; attachmentCount: number }>
+  >({});
+  const [remarkLogsByPoint, setRemarkLogsByPoint] = useState<Record<string, RemarkLogRecord[]>>({});
+  const [attachmentsByPoint, setAttachmentsByPoint] = useState<Record<string, AttachmentRecord[]>>({});
   const [activePoint, setActivePoint] = useState<PointData | null>(null);
+  const [isModalLoading, setIsModalLoading] = useState(false);
+  const [isSubmittingRemark, setIsSubmittingRemark] = useState(false);
+  const [uploadingPointKey, setUploadingPointKey] = useState<string | null>(null);
+  const [modalErrorMessage, setModalErrorMessage] = useState<string | null>(null);
+  const [remarkDraft, setRemarkDraft] = useState("");
 
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -642,8 +514,252 @@ export function PointsTable() {
   const handleExport = useCallback(() => {
     exportToExcel(filteredPoints);
   }, [filteredPoints]);
+
+  useEffect(() => {
+    if (!accessToken) return;
+
+    let active = true;
+
+    api
+      .getPointResourceSummary(accessToken)
+      .then((summary) => {
+        if (!active) return;
+        setSummaryByPoint(
+          Object.fromEntries(
+            summary.map((entry) => [
+              entry.displayName,
+              {
+                remarkCount: entry.remarkCount,
+                attachmentCount: entry.attachmentCount,
+              },
+            ]),
+          ),
+        );
+      })
+      .catch(() => {
+        if (!active) return;
+        setSummaryByPoint({});
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [accessToken]);
+
+  const fetchPointResources = useCallback(
+    async (point: PointData) => {
+      if (!accessToken) {
+        throw new Error("Authentication required");
+      }
+
+      const [remarks, attachments] = await Promise.all([
+        api.getRemarks(accessToken, point.displayName),
+        api.getAttachments(accessToken, point.displayName),
+      ]);
+
+      setRemarkLogsByPoint((prev) => ({
+        ...prev,
+        [point.displayName]: remarks,
+      }));
+      setAttachmentsByPoint((prev) => ({
+        ...prev,
+        [point.displayName]: attachments,
+      }));
+      setSummaryByPoint((prev) => ({
+        ...prev,
+        [point.displayName]: {
+          remarkCount: remarks.length,
+          attachmentCount: attachments.length,
+        },
+      }));
+
+      return { remarks, attachments };
+    },
+    [accessToken],
+  );
+
+  const loadPointDetails = useCallback(
+    async (point: PointData) => {
+      setIsModalLoading(true);
+      setModalErrorMessage(null);
+
+      try {
+        await fetchPointResources(point);
+      } catch (error) {
+        setModalErrorMessage(getApiErrorMessage(error));
+      } finally {
+        setIsModalLoading(false);
+      }
+    },
+    [fetchPointResources],
+  );
+
+  const handleOpenLogs = useCallback(
+    (point: PointData) => {
+      setActivePoint(point);
+      setRemarkDraft("");
+      void loadPointDetails(point);
+    },
+    [loadPointDetails],
+  );
+
+  const handleUploadFile = useCallback(
+    async (point: PointData, file: File) => {
+      if (!accessToken) return;
+
+      const existingAttachmentCount =
+        summaryByPoint[point.displayName]?.attachmentCount ??
+        attachmentsByPoint[point.displayName]?.length ??
+        0;
+
+      if (
+        existingAttachmentCount > 0 &&
+        !window.confirm(
+          "This point already has a file. Uploading a new file will replace the current file. Continue?",
+        )
+      ) {
+        return;
+      }
+
+      setUploadingPointKey(point.displayName);
+      if (activePoint?.displayName === point.displayName) {
+        setModalErrorMessage(null);
+      }
+
+      try {
+        await api.uploadAttachment(accessToken, {
+          displayName: point.displayName,
+          pointKey: point.pointKey ?? undefined,
+          indexCode: point.indexCode ?? undefined,
+          file,
+        });
+        await fetchPointResources(point);
+      } catch (error) {
+        setModalErrorMessage(getApiErrorMessage(error));
+        if (activePoint?.displayName !== point.displayName) {
+          setActivePoint(point);
+          setRemarkDraft("");
+          void loadPointDetails(point);
+        }
+      } finally {
+        setUploadingPointKey(null);
+      }
+    },
+    [
+      accessToken,
+      activePoint,
+      attachmentsByPoint,
+      fetchPointResources,
+      loadPointDetails,
+      summaryByPoint,
+    ],
+  );
+
+  const handleCreateRemark = useCallback(async () => {
+    if (!activePoint || !accessToken || !remarkDraft.trim()) return;
+
+    setIsSubmittingRemark(true);
+    setModalErrorMessage(null);
+
+    try {
+      await api.createRemark(accessToken, {
+        displayName: activePoint.displayName,
+        pointKey: activePoint.pointKey ?? undefined,
+        indexCode: activePoint.indexCode ?? undefined,
+        message: remarkDraft.trim(),
+      });
+      setRemarkDraft("");
+      await fetchPointResources(activePoint);
+    } catch (error) {
+      setModalErrorMessage(getApiErrorMessage(error));
+    } finally {
+      setIsSubmittingRemark(false);
+    }
+  }, [accessToken, activePoint, fetchPointResources, remarkDraft]);
+
+  const handleOpenAttachment = useCallback(
+    async (attachment: AttachmentRecord) => {
+      if (!accessToken) return;
+
+      setModalErrorMessage(null);
+
+      try {
+        const blob = await api.downloadAttachment(accessToken, attachment._id);
+        const objectUrl = window.URL.createObjectURL(blob);
+        window.open(objectUrl, "_blank", "noopener,noreferrer");
+        window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 60_000);
+      } catch (error) {
+        setModalErrorMessage(getApiErrorMessage(error));
+      }
+    },
+    [accessToken],
+  );
+
+  const handleLoadAttachmentPreview = useCallback(
+    async (attachment: AttachmentRecord) => {
+      if (!accessToken) {
+        throw new Error("Authentication required");
+      }
+
+      const blob = await api.downloadAttachment(accessToken, attachment._id);
+      return window.URL.createObjectURL(blob);
+    },
+    [accessToken],
+  );
+
+  const handleDeleteAttachment = useCallback(
+    async (attachment: AttachmentRecord) => {
+      if (!accessToken || !activePoint) return;
+      if (!window.confirm("Delete this file from the point?")) return;
+
+      setModalErrorMessage(null);
+
+      try {
+        await api.deleteAttachment(accessToken, attachment._id);
+        await fetchPointResources(activePoint);
+      } catch (error) {
+        setModalErrorMessage(getApiErrorMessage(error));
+      }
+    },
+    [accessToken, activePoint, fetchPointResources],
+  );
+
+  const handleDeleteRemark = useCallback(
+    async (remark: RemarkLogRecord) => {
+      if (!accessToken || !activePoint) return;
+      if (!window.confirm("Delete this remark log?")) return;
+
+      setModalErrorMessage(null);
+
+      try {
+        await api.deleteRemark(accessToken, remark._id);
+        await fetchPointResources(activePoint);
+      } catch (error) {
+        setModalErrorMessage(getApiErrorMessage(error));
+      }
+    },
+    [accessToken, activePoint, fetchPointResources],
+  );
+
+  const handleUpdateRemark = useCallback(
+    async (remark: RemarkLogRecord, message: string) => {
+      if (!accessToken || !activePoint) return;
+
+      setModalErrorMessage(null);
+
+      try {
+        await api.updateRemark(accessToken, remark._id, message);
+        await fetchPointResources(activePoint);
+      } catch (error) {
+        setModalErrorMessage(getApiErrorMessage(error));
+        throw error;
+      }
+    },
+    [accessToken, activePoint, fetchPointResources],
+  );
+
   const activeRemarks = activePoint ? remarkLogsByPoint[activePoint.displayName] || [] : [];
-  const activeAttachmentCount = activePoint ? attachmentCountByPoint[activePoint.displayName] || 0 : 0;
+  const activeAttachments = activePoint ? attachmentsByPoint[activePoint.displayName] || [] : [];
 
   return (
     <>
@@ -733,7 +849,6 @@ export function PointsTable() {
         <ColumnHeader label="Diff" column="diff" align="center" allPoints={pointList} />
         <ColumnHeader label="Status" column="n4Status" align="center" allPoints={pointList} />
         <div className="flex items-center justify-center text-[10px] font-semibold tracking-wider text-slate-500 dark:text-slate-400">
-          Remarks / Files
         </div>
       </div>
 
@@ -804,16 +919,22 @@ export function PointsTable() {
                     <N4StatusDot status={point.n4Status} />
                   </div>
                   <div className="flex justify-center">
-                    <PointActionsCell
+                    <PointResourceActionsCell
                       point={point}
-                      remarkCount={(remarkLogsByPoint[point.displayName] || []).length}
-                      attachmentCount={attachmentCountByPoint[point.displayName] || 0}
-                      onOpenLogs={() => setActivePoint(point)}
-                      onUploadFile={() =>
-                        setAttachmentCountByPoint((prev) => ({
-                          ...prev,
-                          [point.displayName]: (prev[point.displayName] || 0) + 1,
-                        }))
+                      currentUserRole={user?.role || null}
+                      remarkCount={
+                        summaryByPoint[point.displayName]?.remarkCount ||
+                        (remarkLogsByPoint[point.displayName] || []).length
+                      }
+                      attachmentCount={
+                        summaryByPoint[point.displayName]?.attachmentCount ||
+                        (attachmentsByPoint[point.displayName] || []).length
+                      }
+                      isUploading={uploadingPointKey === point.displayName}
+                      onOpenLogs={() => handleOpenLogs(point)}
+                      onUploadFile={(file) => void handleUploadFile(point, file)}
+                      onOpenTrend={() =>
+                        navigate(`/trend/${encodeURIComponent(point.displayName)}`)
                       }
                     />
                   </div>
@@ -825,11 +946,32 @@ export function PointsTable() {
       </div>
     </div>
     {activePoint && (
-      <PointDetailModal
-        point={activePoint}
-        remarks={activeRemarks}
-        attachmentCount={activeAttachmentCount}
-        onClose={() => setActivePoint(null)}
+        <PointResourceModal
+          point={activePoint}
+          serialNumber={DUMMY_SERIAL_NUMBER}
+          remarks={activeRemarks}
+          attachments={activeAttachments}
+          isLoading={isModalLoading}
+          isSubmittingRemark={isSubmittingRemark}
+          isUploading={uploadingPointKey === activePoint.displayName}
+          errorMessage={modalErrorMessage}
+        remarkDraft={remarkDraft}
+        onRemarkDraftChange={setRemarkDraft}
+        onSubmitRemark={() => void handleCreateRemark()}
+          onRefresh={() => void loadPointDetails(activePoint)}
+          onUploadFile={(file) => void handleUploadFile(activePoint, file)}
+          onOpenAttachment={(attachment) => void handleOpenAttachment(attachment)}
+          onLoadAttachmentPreview={handleLoadAttachmentPreview}
+          onDeleteAttachment={(attachment) => void handleDeleteAttachment(attachment)}
+          onDeleteRemark={(remark) => void handleDeleteRemark(remark)}
+          onUpdateRemark={handleUpdateRemark}
+          currentUserId={user?.id || null}
+          currentUserRole={user?.role || null}
+          onClose={() => {
+            setActivePoint(null);
+            setModalErrorMessage(null);
+          setRemarkDraft("");
+        }}
       />
     )}
     </>

@@ -1,29 +1,39 @@
 import { useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import { useBmsStore } from "../store/bmsStore";
+import { useAuth } from "../auth/AuthProvider";
 import type {
   ConnectedPayload,
   SnapshotPayload,
   DeltaPayload,
   MappingFilter,
 } from "../types/bms";
+import { getSocketBaseUrl } from "../services/config";
 
-const GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL || "http://localhost:3001";
-const NAMESPACE = "/bms";
+const SOCKET_BASE_URL = getSocketBaseUrl();
 
 export function useBmsSocket(filter: MappingFilter = "ALL") {
   const socketRef = useRef<Socket | null>(null);
+  const { accessToken, refreshSession, logout, isAuthenticated } = useAuth();
   const { setStatus, setClientId, applySnapshot, applyDelta, clearChangedKeys } =
     useBmsStore();
 
   useEffect(() => {
+    if (!isAuthenticated || !accessToken) {
+      setStatus("disconnected");
+      return;
+    }
+
     setStatus("connecting");
 
-    const socket = io(`${GATEWAY_URL}${NAMESPACE}`, {
+    const socket = io(SOCKET_BASE_URL, {
       transports: ["websocket", "polling"],
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 2000,
+      auth: {
+        token: accessToken,
+      },
     });
     socketRef.current = socket;
 
@@ -56,6 +66,36 @@ export function useBmsSocket(filter: MappingFilter = "ALL") {
       setStatus("disconnected");
     });
 
+    socket.on("auth:revalidate", async () => {
+      try {
+        const freshToken = await refreshSession();
+        socket.emit("auth:refresh", { token: freshToken });
+      } catch {
+        socket.disconnect();
+        logout();
+      }
+    });
+
+    socket.on("auth:expired", () => {
+      socket.disconnect();
+      logout();
+    });
+
+    socket.on("connect_error", async (error) => {
+      if (
+        error.message.toLowerCase().includes("unauthorized") ||
+        error.message.toLowerCase().includes("authentication")
+      ) {
+        try {
+          const freshToken = await refreshSession();
+          socket.auth = { token: freshToken };
+          socket.connect();
+        } catch {
+          logout();
+        }
+      }
+    });
+
     socket.io.on("reconnect_attempt", () => {
       setStatus("reconnecting");
     });
@@ -70,7 +110,18 @@ export function useBmsSocket(filter: MappingFilter = "ALL") {
       socketRef.current = null;
       setStatus("disconnected");
     };
-  }, [filter]);
+  }, [
+    accessToken,
+    applyDelta,
+    applySnapshot,
+    clearChangedKeys,
+    filter,
+    isAuthenticated,
+    logout,
+    refreshSession,
+    setClientId,
+    setStatus,
+  ]);
 
   return socketRef;
 }

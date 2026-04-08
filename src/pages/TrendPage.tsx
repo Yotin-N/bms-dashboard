@@ -23,6 +23,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { api, type TrendRecord } from "../services/api";
+import { useAuth } from "../auth/AuthProvider";
 import { useBmsStore } from "../store/bmsStore";
 import { useBmsSocket } from "../hooks/useBmsSocket";
 import { useTheme } from "../hooks/useTheme";
@@ -408,6 +409,7 @@ function ChartLegendItem({
 
 
 export function TrendPage() {
+  const { accessToken } = useAuth();
   const { displayName: paramDisplayName } = useParams<{ displayName: string }>();
   const initialDisplayName = paramDisplayName ? decodeURIComponent(paramDisplayName) : "";
   const navigate = useNavigate();
@@ -490,7 +492,9 @@ export function TrendPage() {
       });
 
       try {
+        if (!accessToken) return;
         const data = await api.getTrendByDisplayName(
+          accessToken,
           displayName,
           dateRange.startDate,
           dateRange.endDate,
@@ -512,7 +516,7 @@ export function TrendPage() {
         );
       }
     },
-    [dateRange],
+    [accessToken, dateRange],
   );
 
   useEffect(() => {
@@ -564,7 +568,9 @@ export function TrendPage() {
 
     names.forEach(async (name) => {
       try {
+        if (!accessToken) return;
         const data = await api.getTrendByDisplayName(
+          accessToken,
           name,
           dateRange.startDate,
           dateRange.endDate,
@@ -586,7 +592,7 @@ export function TrendPage() {
         );
       }
     });
-  }, [dateRange, seriesNamesKey]);
+  }, [accessToken, dateRange, seriesNamesKey]);
 
   const removeSeries = (displayName: string) => {
     setSeries((prev) => prev.filter((entry) => entry.displayName !== displayName));

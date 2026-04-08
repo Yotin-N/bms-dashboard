@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useTheme } from "../../hooks/useTheme";
+import { useAuth } from "../../auth/AuthProvider";
 
 interface NavItem {
   label: string;
@@ -30,6 +31,11 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { theme, toggleTheme } = useTheme();
+  const { user } = useAuth();
+  const navItems =
+    user?.role === "admin"
+      ? NAV_ITEMS
+      : NAV_ITEMS.filter((item) => item.to !== "/settings");
 
   return (
     <aside
@@ -62,7 +68,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 space-y-2 overflow-x-hidden overflow-y-auto px-2 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {NAV_ITEMS.map((item) => (
+        {navItems.map((item) => (
           <NavLink
             key={item.label}
             to={item.to}

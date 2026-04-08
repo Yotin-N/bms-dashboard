@@ -109,7 +109,7 @@ interface AssetRow {
 
 const PAGE_SIZE = 50;
 const LOAD_MORE_THRESHOLD = 10;
-const TABLE_GRID_COLS = "grid-cols-[1.55fr_0.9fr_0.9fr_0.9fr_0.95fr_1.05fr_1.1fr_72px]";
+const TABLE_GRID_COLS = "grid-cols-[1.45fr_0.8fr_0.8fr_0.8fr_0.9fr_1fr_1fr_72px]";
 
 type AssetSortableColumn =
   | "indexCode"
@@ -451,7 +451,7 @@ export function EquipmentPage() {
               </button>
             </div>
           ))}
-          <div className="flex items-center justify-center text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <div className="flex items-center justify-center text-[10px] font-semibold tracking-wider text-slate-500 dark:text-slate-400">
             Action
           </div>
         </div>
@@ -464,7 +464,8 @@ export function EquipmentPage() {
             </div>
           ) : (
             <>
-              {displayedData.map((asset, i) => (
+              {displayedData.map((asset, i) => {
+                return (
               <div
                 key={asset.indexCode}
                 className={`grid ${TABLE_GRID_COLS} gap-3 px-4 py-3 items-center border-b border-slate-100 dark:border-slate-800/30 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 ${
@@ -490,7 +491,8 @@ export function EquipmentPage() {
                   </button>
                 </div>
               </div>
-            ))}
+                );
+              })}
 
               {/* Load More Trigger */}
               {hasMore && (
