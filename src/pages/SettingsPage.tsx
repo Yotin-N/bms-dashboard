@@ -380,7 +380,7 @@ export function SettingsPage() {
   return (
     <>
     <div className="flex flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-5 dark:bg-slate-950">
-      <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-4">
+      <div className="mx-auto flex min-h-0 w-full max-w-[1400px] flex-1 flex-col gap-4">
         {isAdmin ? (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <StatTile label="Total users" value={stats.total} icon={<Users className="h-4 w-4" />} />
@@ -414,8 +414,8 @@ export function SettingsPage() {
           </div>
         )}
 
-        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700/50 dark:bg-slate-900/50">
-            <div className="overflow-x-auto">
+        <section className="flex min-h-[calc(100vh-220px)] flex-1 flex-col rounded-xl border border-slate-200 bg-white dark:border-slate-700/50 dark:bg-slate-900/50">
+            <div className="flex-1 overflow-x-auto overflow-y-visible">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 dark:border-slate-700/50 dark:bg-slate-800/60">

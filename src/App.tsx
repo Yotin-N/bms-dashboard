@@ -8,6 +8,8 @@ import { TrendPage } from "./pages/TrendPage";
 import { LoginPage } from "./pages/LoginPage";
 import { SetPasswordPage } from "./pages/SetPasswordPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { BmsImportPage } from "./pages/BmsImportPage";
+import { MappingDashboardPage } from "./pages/MappingDashboardPage";
 
 function ProtectedShell() {
   return (
@@ -29,6 +31,22 @@ function App() {
         <Route path="/equipment" element={<EquipmentPage />} />
         <Route path="/equipment/:indexCode" element={<AssetDetailPage />} />
         <Route path="/trend/:displayName" element={<TrendPage />} />
+        <Route
+          path="/bms-import"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <BmsImportPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mapping-dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <MappingDashboardPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/settings"
           element={

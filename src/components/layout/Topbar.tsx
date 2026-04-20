@@ -31,6 +31,8 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   });
 
   const isSettingsPage = location.pathname === "/settings";
+  const isBmsImportPage = location.pathname === "/bms-import";
+  const isMappingDashboardPage = location.pathname === "/mapping-dashboard";
 
   const statusConfig = {
     connected: { dot: "bg-emerald-500", label: "Connected" },
@@ -93,7 +95,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
 
   return (
     <>
-    <header className="sticky top-0 z-30 flex items-center justify-between h-14 px-4 border-b bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 px-3 sm:px-4 border-b bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
       {/* Left: Menu toggle (mobile) + Page title */}
       <div className="flex items-center gap-3">
         <button
@@ -105,15 +107,15 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         <img
           src={oneBangkokLogo}
           alt="One Bangkok"
-          className="h-6 w-auto object-contain dark:invert dark:contrast-200 dark:opacity-95"
+          className="h-5 w-auto object-contain dark:invert dark:contrast-200 dark:opacity-95 sm:h-6"
         />
       </div>
 
       {/* Right: Status + Last update + User */}
-      <div className="flex items-center gap-3">
-        {/* Connection Status - Hidden on Settings page */}
-        {!isSettingsPage && (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800">
+      <div className="flex items-center gap-2 sm:gap-3">
+        {/* Connection Status - Hidden on Settings and BMS Import pages */}
+        {!isSettingsPage && !isBmsImportPage && !isMappingDashboardPage && (
+          <div className="hidden items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 dark:bg-slate-800 sm:flex">
             <span className={`w-2 h-2 rounded-full ${statusConfig.dot}`} />
             <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
               {statusConfig.label}
@@ -141,7 +143,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           >
             <UserCircle className="h-5 w-5" />
             {user ? (
-              <span className="hidden text-left md:block">
+              <span className="hidden text-left lg:block">
                 <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">
                   {user.firstName} {user.lastName}
                 </span>
@@ -295,7 +297,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                     Saving...
                   </>
                 ) : (
-                  "Save Changes"
+                  "Save"
                 )}
               </button>
             </div>

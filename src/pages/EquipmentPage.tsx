@@ -176,6 +176,7 @@ export function EquipmentPage() {
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const [sortColumn, setSortColumn] = useState<AssetSortableColumn | null>(null);
   const [sortDirection, setSortDirection] = useState<AssetSortDirection>(null);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [segmentFilters, setSegmentFilters] = useState<Record<SegmentKey, string | null>>(
     Object.fromEntries(SEGMENT_LABELS.map(k => [k as SegmentKey, null])) as Record<SegmentKey, string | null>
   );
@@ -367,8 +368,48 @@ export function EquipmentPage() {
 
       {/* Table */}
       <div className="flex flex-col flex-1 border border-slate-200 dark:border-slate-700/50 rounded-xl overflow-hidden bg-white dark:bg-slate-900/50">
+        <div className="border-b border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-700/50 dark:bg-slate-800/60 lg:hidden">
+          <div className="flex items-center gap-2">
+            <div className="relative min-w-0 flex-1">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+              <input
+                type="text"
+                placeholder="Search indexCode, segments..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  resetDisplay();
+                }}
+                className="h-8 w-full pl-7 pr-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-[11px] text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-200 dark:focus:ring-slate-700 focus:border-slate-300 dark:focus:border-slate-600"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setMobileFiltersOpen(true)}
+              className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-3 text-[11px] font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              Filters
+              {activeSegments.length > 0 ? (
+                <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                  {activeSegments.length}
+                </span>
+              ) : null}
+            </button>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <span className="text-[11px] text-slate-400 dark:text-slate-500">
+              <span className="font-semibold text-slate-700 dark:text-slate-300">{filtered.length.toLocaleString()}</span>
+              <span className="mx-0.5">/</span>
+              {assets.length.toLocaleString()}
+            </span>
+          </div>
+        </div>
+
         {/* Toolbar: Search + Segments + Actions */}
-        <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700/50 flex-wrap">
+        <div className="hidden lg:flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700/50 flex-wrap">
           {/* Search */}
           <div className="relative w-56">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
@@ -429,7 +470,7 @@ export function EquipmentPage() {
           </button>
         </div>
         {/* Header */}
-        <div className={`grid ${TABLE_GRID_COLS} gap-3 px-4 py-2 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700/50`}>
+        <div className={`hidden lg:grid ${TABLE_GRID_COLS} gap-3 px-4 py-2 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700/50`}>
           {[
             { key: "indexCode", label: "Index Code" },
             { key: "building", label: "Building" },
@@ -457,7 +498,7 @@ export function EquipmentPage() {
         </div>
 
         {/* Rows */}
-        <div className="flex-1 overflow-auto">
+        <div className="hidden flex-1 overflow-auto lg:block">
           {displayedData.length === 0 ? (
             <div className="flex items-center justify-center h-32 text-slate-500 text-sm">
               {assets.length === 0 ? "Waiting for data..." : "No assets match your search"}
@@ -529,7 +570,146 @@ export function EquipmentPage() {
             </>
           )}
         </div>
+        <div className="flex-1 overflow-auto px-3 py-3 lg:hidden">
+          {displayedData.length === 0 ? (
+            <div className="flex items-center justify-center h-32 text-slate-500 text-sm">
+              {assets.length === 0 ? "Waiting for data..." : "No assets match your search"}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {displayedData.map((asset) => (
+                <button
+                  key={asset.indexCode}
+                  type="button"
+                  onClick={() => navigate(`/equipment/${encodeURIComponent(asset.indexCode)}`)}
+                  className="w-full rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-700/60 dark:bg-slate-900/80 dark:hover:bg-slate-900"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+                        Equipment
+                      </div>
+                      <div
+                        className="mt-1.5 truncate font-mono text-[14px] font-semibold text-slate-800 dark:text-slate-100"
+                        title={asset.indexCode}
+                      >
+                        {asset.indexCode}
+                      </div>
+                    </div>
+                    <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 dark:border-slate-700 dark:text-slate-300">
+                      <Eye className="w-4 h-4" />
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3">
+                    {[
+                      ["Building", asset.building || "—"],
+                      ["Floor", asset.floor || "—"],
+                      ["Room", asset.room || "—"],
+                      ["System", asset.system || "—"],
+                      ["Subsystem", asset.subsystem || "—"],
+                      ["Equipment", asset.equipment || "—"],
+                    ].map(([label, value]) => (
+                      <div key={label}>
+                        <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+                          {label}
+                        </div>
+                        <div className="mt-1 truncate text-[13px] text-slate-700 dark:text-slate-300" title={value}>
+                          {value}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </button>
+              ))}
+
+              {hasMore ? (
+                <div className="flex items-center justify-center py-2">
+                  <button
+                    onClick={loadMore}
+                    disabled={isLoadingMore}
+                    className="flex h-9 items-center gap-2 rounded-lg border border-slate-200 px-4 text-sm text-slate-600 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoadingMore ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      <>Load More</>
+                    )}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
       </div>
+
+      {mobileFiltersOpen ? (
+        <div className="fixed inset-0 z-[70] lg:hidden">
+          <button
+            type="button"
+            aria-label="Close filters"
+            onClick={() => setMobileFiltersOpen(false)}
+            className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px]"
+          />
+          <div className="absolute inset-x-0 bottom-0 max-h-[78dvh] overflow-y-auto rounded-t-3xl border-t border-slate-200 bg-white px-4 pb-6 pt-4 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-200 dark:bg-slate-700" />
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Filters</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">Narrow the equipment list.</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileFiltersOpen(false)}
+                className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {SEGMENT_LABELS.map((label) => (
+                <label key={`mobile-${label}`} className="space-y-1.5">
+                  <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400">{label}</span>
+                  <select
+                    value={segmentFilters[label] ?? ""}
+                    onChange={(event) => {
+                      setSegmentFilters((prev) => ({ ...prev, [label]: event.target.value || null }));
+                      resetDisplay();
+                    }}
+                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-colors focus:border-slate-300 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-slate-600"
+                  >
+                    <option value="">All</option>
+                    {segmentOptions[label].map((option) => (
+                      <option key={`${label}-${option}`} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+            </div>
+
+            {activeSegments.length > 0 ? (
+              <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-800">
+                <button
+                  onClick={() => {
+                    clearSegmentFilters();
+                    resetDisplay();
+                  }}
+                  className="flex h-9 items-center gap-1 rounded-lg px-3 text-[11px] font-medium text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-red-400 dark:hover:bg-red-500/10 dark:hover:text-red-300"
+                >
+                  <X className="w-3 h-3" />
+                  Clear filters
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

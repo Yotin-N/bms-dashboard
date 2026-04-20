@@ -10,10 +10,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@codemirror/lang-sql": "^6.10.0",
     "@tanstack/react-virtual": "^3.13.23",
+    "@types/prismjs": "^1.26.6",
+    "@uiw/react-codemirror": "^4.25.9",
     "lucide-react": "^1.7.0",
+    "prismjs": "^1.30.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-is": "^19.2.5",
     "react-router-dom": "^7.13.2",
     "recharts": "^3.8.1",
     "socket.io-client": "^4.8.3",

@@ -3,6 +3,7 @@ export interface PointData {
   displayName: string;
   pointKey: number | null;
   indexCode: string | null;
+  serialNumber: string | null;
   units: string | null;
   template: string | null;
   mappingStatus: string;

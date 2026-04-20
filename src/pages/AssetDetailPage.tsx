@@ -8,6 +8,7 @@ import {
   type AttachmentRecord,
   type RemarkLogRecord,
 } from "../services/api";
+import { prepareAttachmentImageFile } from "../utils/attachment-files";
 import { useBmsStore } from "../store/bmsStore";
 import { useBmsSocket } from "../hooks/useBmsSocket";
 import {
@@ -16,7 +17,6 @@ import {
 } from "../components/point-resources/PointResourceUI";
 import type { PointData } from "../types/bms";
 
-const DUMMY_SERIAL_NUMBER = "540250261088";
 const TABLE_GRID_COLS =
   "grid-cols-[1.45fr_0.95fr_120px_70px_96px_96px_82px_104px_72px]";
 
@@ -173,6 +173,17 @@ export function AssetDetailPage() {
     async (point: PointData, file: File) => {
       if (!accessToken) return;
 
+      let preparedFile: File;
+      try {
+        preparedFile = await prepareAttachmentImageFile(file);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unable to prepare the selected image.";
+        setModalErrorMessage(message);
+        window.alert(message);
+        return;
+      }
+
       const existingAttachmentCount =
         summaryByPoint[point.displayName]?.attachmentCount ??
         attachmentsByPoint[point.displayName]?.length ??
@@ -197,7 +208,7 @@ export function AssetDetailPage() {
           displayName: point.displayName,
           pointKey: point.pointKey ?? undefined,
           indexCode: point.indexCode ?? undefined,
-          file,
+          file: preparedFile,
         });
         await fetchPointResources(point);
       } catch (error) {
@@ -401,8 +412,11 @@ export function AssetDetailPage() {
                     <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate" title={point.template || "—"}>
                       {point.template || "—"}
                     </span>
-                    <span className="text-[11px] font-mono text-slate-700 dark:text-slate-200 truncate" title={DUMMY_SERIAL_NUMBER}>
-                      {DUMMY_SERIAL_NUMBER}
+                    <span
+                      className="text-[11px] font-mono text-slate-700 dark:text-slate-200 truncate"
+                      title={point.serialNumber || "-"}
+                    >
+                      {point.serialNumber || "-"}
                     </span>
                     <span className="text-[11px] text-slate-500 dark:text-slate-400 text-center">
                       {point.units || "—"}
@@ -459,7 +473,7 @@ export function AssetDetailPage() {
       {activePoint && (
         <PointResourceModal
           point={activePoint}
-          serialNumber={DUMMY_SERIAL_NUMBER}
+          serialNumber={activePoint.serialNumber || "-"}
           remarks={activeRemarks}
           attachments={activeAttachments}
           isLoading={isModalLoading}

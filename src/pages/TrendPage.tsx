@@ -21,6 +21,8 @@ import {
   ChevronDown,
   Check,
   Calendar,
+  SlidersHorizontal,
+  Plus,
 } from "lucide-react";
 import { api, type TrendRecord } from "../services/api";
 import { useAuth } from "../auth/AuthProvider";
@@ -432,6 +434,7 @@ export function TrendPage() {
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [dateRange, setDateRange] = useState(getDefaultDateRange);
   const [hiddenLineKeys, setHiddenLineKeys] = useState<string[]>([]);
+  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
   const [dragStartTime, setDragStartTime] = useState<number | null>(null);
   const [dragEndTime, setDragEndTime] = useState<number | null>(null);
   const [zoomRange, setZoomRange] = useState<ZoomRange | null>(null);
@@ -823,8 +826,108 @@ export function TrendPage() {
         </div>
       </div>
 
+      <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-3 dark:border-slate-700/50 dark:bg-slate-800/50 sm:hidden">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setMobileControlsOpen(true)}
+            className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            Controls
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowAddPanel((open) => !open)}
+            className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            <Plus className="h-4 w-4" />
+            Add Points
+          </button>
+        </div>
+
+        <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+              From
+            </div>
+            <div className="mt-1 text-slate-700 dark:text-slate-200">
+              {new Date(dateRange.startDate).toLocaleString([], {
+                timeZone: BANGKOK_TIME_ZONE,
+                month: "short",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+              To
+            </div>
+            <div className="mt-1 text-slate-700 dark:text-slate-200">
+              {new Date(dateRange.endDate).toLocaleString([], {
+                timeZone: BANGKOK_TIME_ZONE,
+                month: "short",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </div>
+          </div>
+        </div>
+
+        {showAddPanel ? (
+          <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+              <input
+                type="text"
+                placeholder={`Search point name in ${currentAssetIndexCode ?? "asset"}...`}
+                value={addSearch}
+                onChange={(e) => setAddSearch(e.target.value)}
+                autoFocus
+                className="w-full pl-8 pr-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-200 dark:focus:ring-slate-700 focus:border-slate-300 dark:focus:border-slate-600"
+              />
+            </div>
+            <div className="mt-2 max-h-64 overflow-auto rounded-lg border border-slate-200 dark:border-slate-700">
+              {filteredAssetPoints.length === 0 ? (
+                <div className="px-3 py-3 text-[11px] text-slate-500 dark:text-slate-400">
+                  No matching points for this asset.
+                </div>
+              ) : (
+                filteredAssetPoints.map((point) => {
+                  const selected = series.some((entry) => entry.displayName === point.displayName);
+                  return (
+                    <button
+                      key={point.displayName}
+                      type="button"
+                      onClick={() => togglePointSelection(point.displayName)}
+                      className="flex w-full items-center gap-2 border-b border-slate-100 px-3 py-2 text-left transition-colors hover:bg-slate-50 dark:border-slate-800/70 dark:hover:bg-slate-800/60 last:border-0"
+                    >
+                      <span
+                        className={`flex h-4 w-4 items-center justify-center rounded border text-white transition-colors ${
+                          selected
+                            ? "border-slate-700 bg-slate-700 dark:border-slate-200 dark:bg-slate-200"
+                            : "border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900"
+                        }`}
+                      >
+                        {selected && <Check className="h-3 w-3 text-white dark:text-slate-900" />}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-slate-700 dark:text-slate-200">
+                        {getPointNameFromSnapshot(point)}
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
       {/* Toolbar: Date Range + Actions */}
-      <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-700/50 dark:bg-slate-800/50">
+      <div className="hidden rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-700/50 dark:bg-slate-800/50 sm:block">
         <div className="flex flex-wrap items-center gap-2 xl:gap-3">
           <div className="flex items-center gap-2">
             <label className="text-[11px] text-slate-500 dark:text-slate-400">From</label>
@@ -1002,7 +1105,7 @@ export function TrendPage() {
         <div className="flex flex-col flex-1 border border-slate-200 dark:border-slate-700/50 rounded-xl overflow-hidden bg-white dark:bg-slate-900/50">
 
           {/* Legend */}
-          <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700/50">
+          <div className="flex items-center gap-2 overflow-x-auto px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700/50 sm:flex-wrap sm:px-4">
             {legendItems.length === 0 ? (
               <div className="text-[11px] text-slate-500 dark:text-slate-400">
                 Add a point to show legend
@@ -1022,8 +1125,8 @@ export function TrendPage() {
           {/* Chart */}
           <div
             ref={chartAreaRef}
-            className="flex-1 p-4 [&_.recharts-layer:focus]:outline-none [&_.recharts-surface:focus]:outline-none [&_.recharts-wrapper:focus]:outline-none"
-            style={{ minHeight: 360 }}
+            className="flex-1 p-3 [&_.recharts-layer:focus]:outline-none [&_.recharts-surface:focus]:outline-none [&_.recharts-wrapper:focus]:outline-none sm:p-4"
+            style={{ minHeight: 320 }}
           >
             {chartData.length === 0 ? (
               <div className="flex items-center justify-center h-full text-slate-500 text-sm">
@@ -1036,11 +1139,11 @@ export function TrendPage() {
             ) : (
               <div className="flex flex-col h-full">
                 {/* Main Chart */}
-                <div className="flex-1 px-2 py-2 md:px-3">
+                <div className="flex-1 px-1 py-1 sm:px-2 sm:py-2 md:px-3">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart
                       data={displayedChartData}
-                      margin={{ top: 14, right: 18, bottom: 12, left: 10 }}
+                      margin={{ top: 14, right: 10, bottom: 8, left: 0 }}
                       onMouseDown={handleChartMouseDown}
                       onMouseMove={handleChartMouseMove}
                       onMouseUp={handleChartMouseUp}
@@ -1084,7 +1187,7 @@ export function TrendPage() {
                         domain={["dataMin", "dataMax"]}
                         ticks={xAxisTicks}
                         tickFormatter={(value) => formatXAxisLabel(value as number, xAxisRangeMs)}
-                        tick={{ fontSize: 11, fill: "rgb(var(--color-text-secondary))" }}
+                        tick={{ fontSize: chartWidth < 640 ? 10 : 11, fill: "rgb(var(--color-text-secondary))" }}
                         tickLine={{
                           stroke: isDark ? "rgba(100, 116, 139, 0.7)" : "rgba(100, 116, 139, 0.75)",
                           strokeWidth: 1,
@@ -1100,12 +1203,12 @@ export function TrendPage() {
                         padding={{ left: 12, right: 12 }}
                       />
                       <YAxis
-                        width={62}
+                        width={chartWidth < 640 ? 48 : 62}
                         domain={yAxisDomain}
                         tickFormatter={(value) =>
                           typeof value === "number" ? formatYAxisTick(value) : String(value)
                         }
-                        tick={{ fontSize: 11, fill: "rgb(var(--color-text-secondary))" }}
+                        tick={{ fontSize: chartWidth < 640 ? 10 : 11, fill: "rgb(var(--color-text-secondary))" }}
                         tickLine={false}
                         axisLine={{
                           stroke: isDark ? "rgba(148, 163, 184, 0.45)" : "rgba(148, 163, 184, 0.8)",
@@ -1153,7 +1256,7 @@ export function TrendPage() {
                 </div>
 
                 {/* Brush Container - Separate from chart */}
-                <div className="mt-4 h-10 px-2 md:px-3">
+                <div className="mt-3 h-10 px-1 sm:mt-4 sm:px-2 md:px-3">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData}>
                       <Brush
@@ -1176,6 +1279,115 @@ export function TrendPage() {
           </div>
         </div>
       </div>
+
+      {mobileControlsOpen ? (
+        <div className="fixed inset-0 z-[70] sm:hidden">
+          <button
+            type="button"
+            aria-label="Close controls"
+            onClick={() => setMobileControlsOpen(false)}
+            className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px]"
+          />
+          <div className="absolute inset-x-0 bottom-0 max-h-[80dvh] overflow-y-auto rounded-t-3xl border-t border-slate-200 bg-white px-4 pb-6 pt-4 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-200 dark:bg-slate-700" />
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Trend controls</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">Adjust time range and visibility.</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileControlsOpen(false)}
+                className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <div>
+                  <label className="mb-1.5 block text-[11px] font-medium text-slate-500 dark:text-slate-400">From</label>
+                  <div className="relative">
+                    <input
+                      ref={startDateInputRef}
+                      type="datetime-local"
+                      value={dateRange.startDate.slice(0, 16)}
+                      onChange={(e) =>
+                        updateDateRange({
+                          ...dateRange,
+                          startDate: `${e.target.value}:00`,
+                        })
+                      }
+                      className="themed-datetime-input h-10 w-full rounded-lg border border-slate-200 bg-white pl-3 pr-10 text-sm text-slate-700 focus:border-slate-300 focus:outline-none focus:ring-1 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-slate-600 dark:focus:ring-slate-700"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => openNativeDateTimePicker(startDateInputRef.current)}
+                      className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-lg text-slate-500 transition-colors hover:text-slate-700 dark:text-slate-300 dark:hover:text-slate-100"
+                    >
+                      <Calendar className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-[11px] font-medium text-slate-500 dark:text-slate-400">To</label>
+                  <div className="relative">
+                    <input
+                      ref={endDateInputRef}
+                      type="datetime-local"
+                      value={dateRange.endDate.slice(0, 16)}
+                      onChange={(e) =>
+                        updateDateRange({
+                          ...dateRange,
+                          endDate: `${e.target.value}:00`,
+                        })
+                      }
+                      className="themed-datetime-input h-10 w-full rounded-lg border border-slate-200 bg-white pl-3 pr-10 text-sm text-slate-700 focus:border-slate-300 focus:outline-none focus:ring-1 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-slate-600 dark:focus:ring-slate-700"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => openNativeDateTimePicker(endDateInputRef.current)}
+                      className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-lg text-slate-500 transition-colors hover:text-slate-700 dark:text-slate-300 dark:hover:text-slate-100"
+                    >
+                      <Calendar className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-4 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => updateDateRange(getDefaultDateRange())}
+                  className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-100 px-3 text-[11px] font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-200/70 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-700/80"
+                >
+                  Last 24h
+                </button>
+                <button
+                  type="button"
+                  onClick={resetZoom}
+                  disabled={!hasActiveZoom}
+                  className="flex h-9 items-center gap-1 rounded-lg px-3 text-[11px] font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700/50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Reset Zoom
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHiddenLineKeys([])}
+                  disabled={hiddenLineKeys.length === 0}
+                  className="flex h-9 items-center gap-1 rounded-lg px-3 text-[11px] font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700/50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  Show All
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

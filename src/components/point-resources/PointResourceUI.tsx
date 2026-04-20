@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import type { PointData } from "../../types/bms";
 import type { AttachmentRecord, RemarkLogRecord } from "../../services/api";
+import { ATTACHMENT_IMAGE_ACCEPT } from "../../utils/attachment-files";
 
 export function formatLogTime(timestamp: string) {
   return new Date(timestamp).toLocaleString([], {
@@ -265,12 +266,15 @@ export function PointResourceModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 px-4 backdrop-blur-[2px]">
-      <div className="flex h-[84vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-        <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-6 py-4 dark:border-slate-800">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/40 px-0 backdrop-blur-[2px] sm:items-center sm:px-4">
+      <div className="flex h-[100dvh] w-full max-w-5xl flex-col overflow-hidden rounded-none border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900 sm:h-[84vh] sm:rounded-2xl">
+        <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-4 dark:border-slate-800 sm:px-6">
           <div className="flex items-center gap-4">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              <h3
+                className="truncate text-base font-semibold text-slate-900 dark:text-slate-100 sm:text-lg"
+                title={point.indexCode || "—"}
+              >
                 {point.indexCode}
               </h3>
               <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -299,22 +303,24 @@ export function PointResourceModal({
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)]">
-            <aside className="min-h-0 overflow-y-auto border-r border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
+            <aside className="min-h-0 overflow-y-auto border-b border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 sm:p-6 lg:border-b-0 lg:border-r">
               <section className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                     Attachment
                   </h4>
                   {canManageResources ? (
-                    <button
-                      type="button"
-                      onClick={() => uploadInputRef.current?.click()}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
-                      disabled={isUploading}
-                    >
-                      {isUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
-                      {attachments.length > 0 ? "Replace" : "Upload"}
-                    </button>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => uploadInputRef.current?.click()}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                        disabled={isUploading}
+                      >
+                        {isUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
+                        {attachments.length > 0 ? "Replace Image" : "Upload Image"}
+                      </button>
+                    </div>
                   ) : null}
                 </div>
 
@@ -322,7 +328,7 @@ export function PointResourceModal({
                   <input
                     ref={uploadInputRef}
                     type="file"
-                    accept="image/*,application/pdf"
+                    accept={ATTACHMENT_IMAGE_ACCEPT}
                     className="hidden"
                     onChange={(event) => {
                       const file = event.target.files?.[0];
@@ -412,7 +418,7 @@ export function PointResourceModal({
               </section>
             </aside>
 
-            <section className="relative min-h-0 overflow-hidden flex flex-col p-6">
+            <section className="relative min-h-0 overflow-hidden flex flex-col p-4 sm:p-6">
               <div className="mb-4 flex items-center justify-between">
                 <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                   Remark Logs
@@ -437,7 +443,7 @@ export function PointResourceModal({
               ) : null}
 
               <div
-                className={`min-h-0 flex-1 overflow-auto custom-scrollbar ${isComposerOpen ? "pb-32" : ""}`}
+                className={`min-h-0 flex-1 overflow-auto custom-scrollbar ${isComposerOpen ? "pb-36 sm:pb-32" : ""}`}
                 style={{
                   scrollbarWidth: 'thin',
                   scrollbarColor: '#64748b #f1f5f9',
@@ -538,8 +544,8 @@ export function PointResourceModal({
               </div>
 
               {isComposerOpen ? (
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 overflow-y-auto">
-                  <div className="pointer-events-auto w-full max-w-md rounded-xl border border-slate-200 bg-white p-4 shadow-xl backdrop-blur dark:border-slate-700 dark:bg-slate-900">
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-4 overflow-y-auto sm:inset-0 sm:items-center sm:p-6">
+                  <div className="pointer-events-auto w-full max-w-md rounded-2xl border border-slate-200 bg-white p-4 shadow-xl backdrop-blur dark:border-slate-700 dark:bg-slate-900">
                     <div className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">
                       New remark
                     </div>
@@ -613,6 +619,8 @@ export function PointResourceActionsCell({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const canManageResources =
     currentUserRole === "admin" || currentUserRole === "editor";
+  const baseButtonClass =
+    "relative flex items-center justify-center rounded border transition-colors disabled:cursor-not-allowed disabled:opacity-60 h-8 w-8 sm:h-5 sm:w-5";
 
   return (
     <div className="flex items-center justify-center gap-1.5">
@@ -622,7 +630,7 @@ export function PointResourceActionsCell({
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={isUploading}
-            className={`relative flex h-5 w-5 items-center justify-center rounded border transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+            className={`${baseButtonClass} ${
               attachmentCount > 0
                 ? "border-slate-300 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-700 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-300 dark:hover:bg-slate-800"
                 : "border-slate-200 bg-transparent text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:border-slate-700 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300"
@@ -634,7 +642,7 @@ export function PointResourceActionsCell({
           <input
             ref={inputRef}
             type="file"
-            accept="image/*"
+            accept={ATTACHMENT_IMAGE_ACCEPT}
             className="hidden"
             onChange={(event) => {
               const file = event.target.files?.[0];
@@ -648,7 +656,7 @@ export function PointResourceActionsCell({
       <button
         type="button"
         onClick={onOpenLogs}
-        className={`relative flex h-5 w-5 items-center justify-center rounded border transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+        className={`${baseButtonClass} ${
           remarkCount > 0
             ? "border-slate-300 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-700 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-300 dark:hover:bg-slate-800"
             : "border-slate-200 bg-transparent text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:border-slate-700 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300"
@@ -665,7 +673,7 @@ export function PointResourceActionsCell({
         <button
           type="button"
           onClick={onOpenTrend}
-          className="relative flex h-5 w-5 items-center justify-center rounded border border-slate-200 bg-transparent text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:border-slate-700 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+          className={`${baseButtonClass} border-slate-200 bg-transparent text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:border-slate-700 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300`}
           title={`Open trend for ${point.displayName}`}
         >
           <TrendingUp className="h-3 w-3" />

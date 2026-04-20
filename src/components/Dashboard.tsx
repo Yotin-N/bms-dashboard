@@ -8,7 +8,9 @@ export function Dashboard() {
 
   return (
     <div className="flex flex-col flex-1 gap-4 p-4 overflow-hidden">
-      <MetricsSummary />
+      <div className="hidden lg:block">
+        <MetricsSummary />
+      </div>
       <PointsTable />
     </div>
   );

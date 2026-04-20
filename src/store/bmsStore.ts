@@ -14,6 +14,7 @@ export type SortableColumn =
   | "indexCode"
   | "displayName"
   | "template"
+  | "serialNumber"
   | "units"
   | "n4Val"
   | "ivivaVal"
@@ -83,6 +84,7 @@ function createEmptyColumnFilters(): ColumnFilterSets {
     indexCode: new Set(),
     displayName: new Set(),
     template: new Set(),
+    serialNumber: new Set(),
     units: new Set(),
     n4Val: new Set(),
     ivivaVal: new Set(),

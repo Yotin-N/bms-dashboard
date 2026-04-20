@@ -5,7 +5,6 @@ import {
   ArrowUpDown, ArrowUp, ArrowDown, Download, FilterX,
   Filter, Search, SlidersHorizontal, ChevronDown, X,
 } from "lucide-react";
-import * as XLSX from "xlsx";
 import { useAuth } from "../auth/AuthProvider";
 import { api, ApiError, type AttachmentRecord, type RemarkLogRecord } from "../services/api";
 import { useBmsStore } from "../store/bmsStore";
@@ -13,15 +12,19 @@ import { SEGMENT_LABELS, parseSegments } from "../types/bms";
 import type { PointData } from "../types/bms";
 import type { SegmentKey } from "../types/bms";
 import type { SortableColumn, SortDirection } from "../store/bmsStore";
+import { prepareAttachmentImageFile } from "../utils/attachment-files";
 import {
   PointResourceActionsCell,
   PointResourceModal,
 } from "./point-resources/PointResourceUI";
 
 const ROW_HEIGHT = 52;
-const GRID_TEMPLATE_COLUMNS =
+const MOBILE_CARD_HEIGHT_ADMIN = 228;
+const MOBILE_CARD_HEIGHT_LIMITED = 204;
+const ADMIN_GRID_TEMPLATE_COLUMNS =
   "minmax(210px, 1.18fr) minmax(260px, 1.32fr) minmax(150px, 0.78fr) minmax(120px, 0.68fr) 46px 72px 72px 64px 82px 104px";
-const DUMMY_SERIAL_NUMBER = "540250261088";
+const LIMITED_GRID_TEMPLATE_COLUMNS =
+  "minmax(210px, 1.25fr) minmax(260px, 1.35fr) minmax(150px, 0.95fr) minmax(120px, 0.72fr) 56px 84px 88px 104px";
 
 function getApiErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
@@ -269,11 +272,13 @@ function SegmentDropdown({
   options,
   value,
   onChange,
+  direction = "down",
 }: {
   label: SegmentKey;
   options: string[];
   value: string | null;
   onChange: (val: string | null) => void;
+  direction?: "down" | "up";
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -287,6 +292,10 @@ function SegmentDropdown({
   }, []);
 
   const active = value !== null;
+  const dropdownPositionClass =
+    direction === "up"
+      ? "bottom-full mb-1 left-0"
+      : "top-full mt-1 left-0";
 
   return (
     <div ref={ref} className="relative">
@@ -312,7 +321,7 @@ function SegmentDropdown({
         )}
       </button>
       {open && options.length > 0 && (
-        <div className="absolute z-50 top-full mt-1 left-0 min-w-[120px] max-h-[220px] overflow-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl shadow-black/10 dark:shadow-black/30">
+        <div className={`absolute z-[90] ${dropdownPositionClass} min-w-[140px] max-h-[220px] overflow-auto rounded-lg border border-slate-200 bg-white shadow-xl shadow-black/10 dark:border-slate-700 dark:bg-slate-800 dark:shadow-black/30`}>
           <button
             onClick={() => { onChange(null); setOpen(false); }}
             className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${
@@ -368,46 +377,126 @@ function comparePoints(a: PointData, b: PointData, column: SortableColumn, direc
   return String(aVal).localeCompare(String(bVal)) * mul;
 }
 
-/* ── Export to Excel ─────────────────────────────────── */
+function PointMobileCard({
+  point,
+  isChanged,
+  remarkCount,
+  attachmentCount,
+  isUploading,
+  currentUserRole,
+  showOperationalValues,
+  onOpenLogs,
+  onUploadFile,
+  onOpenTrend,
+}: {
+  point: PointData;
+  isChanged: boolean;
+  remarkCount: number;
+  attachmentCount: number;
+  isUploading: boolean;
+  currentUserRole: "admin" | "editor" | "viewer" | null;
+  showOperationalValues: boolean;
+  onOpenLogs: () => void;
+  onUploadFile: (file: File) => void;
+  onOpenTrend: () => void;
+}) {
+  const isFault = !!point.n4Status && point.n4Status !== "ok" && point.n4Status !== "OK";
+  const shouldShowStatusBadge = isFault || point.mappingStatus === "N4_ONLY";
+  const borderClass = isFault
+    ? "border-l-4 border-l-red-500 dark:border-l-red-400"
+    : point.mappingStatus === "N4_ONLY"
+      ? "border-l-4 border-l-orange-500 dark:border-l-orange-400"
+      : "border-l-4 border-l-transparent";
 
-function exportToExcel(points: PointData[]) {
-  const data = points.map((p) => ({
-    "Index Code": p.indexCode || "",
-    "Display Name": p.displayName,
-    "Point Name": p.template || "",
-    SN: DUMMY_SERIAL_NUMBER,
-    "Units": p.units || "",
-    "BMS": p.n4Val || "",
-    "IVIVA": p.ivivaVal || "",
-    "Status": p.n4Status || "",
-  }));
+  return (
+    <div
+      className={`h-full rounded-xl border border-slate-200 bg-white px-3.5 py-3.5 shadow-sm transition-colors dark:border-slate-700/60 dark:bg-slate-900/80 ${
+        isChanged ? "row-flash" : ""
+      } ${borderClass}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+            {point.template || "Point"}
+          </div>
+          <div
+            className="mt-1.5 truncate font-mono text-[14px] font-semibold leading-tight text-slate-700 dark:text-slate-200"
+            title={point.indexCode || "—"}
+          >
+            {point.indexCode || "—"}
+          </div>
+        </div>
+        {shouldShowStatusBadge ? (
+          <div className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            <N4StatusDot status={point.n4Status || point.mappingStatus} />
+          </div>
+        ) : null}
+      </div>
 
-  // Bangkok timestamp (UTC+7)
-  const bangkokTime = new Date().toLocaleString("en-GB", {
-    timeZone: "Asia/Bangkok",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
+      <div className={`mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5`}>
+        {showOperationalValues ? (
+          <div>
+            <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+              BMS
+            </div>
+            <div className="mt-0.5 font-mono text-[13px] text-slate-800 dark:text-slate-100">
+              {point.n4Val ?? "—"}
+            </div>
+          </div>
+        ) : null}
+        <div>
+          <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+            IVIVA
+          </div>
+          <div className="mt-0.5 font-mono text-[13px] text-slate-800 dark:text-slate-100">
+            {point.ivivaVal ?? "—"}
+          </div>
+        </div>
+        {showOperationalValues ? (
+          <div>
+            <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+              Diff
+            </div>
+            <div className="mt-0.5">
+              <DiffCell n4Val={point.n4Val} ivivaVal={point.ivivaVal} />
+            </div>
+          </div>
+        ) : null}
+        <div>
+          <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+            Unit
+          </div>
+          <div className="mt-0.5 text-[13px] text-slate-700 dark:text-slate-300">
+            {point.units || "—"}
+          </div>
+        </div>
+      </div>
 
-  const wb = XLSX.utils.book_new();
-  // Create sheet with timestamp row first, then skip a row, then table data
-  const ws = XLSX.utils.aoa_to_sheet([
-    [`Exported: ${bangkokTime} (Bangkok Time)`],
-    [],
-  ]);
-  XLSX.utils.sheet_add_json(ws, data, { origin: "A3" });
-
-  const colWidths = Object.keys(data[0] || {}).map((key) => ({
-    wch: Math.max(key.length, ...data.map((r) => String((r as Record<string, string>)[key] || "").length).slice(0, 100)) + 2,
-  }));
-  ws["!cols"] = colWidths;
-  XLSX.utils.book_append_sheet(wb, ws, "BMS Points");
-  XLSX.writeFile(wb, `BMS_Points_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      <div className="mt-3 flex items-end justify-between gap-3 border-t border-slate-200 pt-2.5 dark:border-slate-800">
+        <div className="min-w-0">
+          <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+            Serial No.
+          </div>
+          <div
+            className="mt-0.5 truncate font-mono text-[12px] text-slate-600 dark:text-slate-300"
+            title={point.serialNumber || "-"}
+          >
+            {point.serialNumber || "-"}
+          </div>
+        </div>
+        <PointResourceActionsCell
+          point={point}
+          currentUserRole={currentUserRole}
+          remarkCount={remarkCount}
+          attachmentCount={attachmentCount}
+          isUploading={isUploading}
+          onOpenLogs={onOpenLogs}
+          onUploadFile={onUploadFile}
+          onOpenTrend={onOpenTrend}
+        />
+      </div>
+    </div>
+  );
 }
 
 /* ── Main Table Component ────────────────────────────── */
@@ -440,17 +529,30 @@ export function PointsTable() {
   const [uploadingPointKey, setUploadingPointKey] = useState<string | null>(null);
   const [modalErrorMessage, setModalErrorMessage] = useState<string | null>(null);
   const [remarkDraft, setRemarkDraft] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const isAdmin = user?.role === "admin";
+  const canSeeOperationalValues = user?.role === "admin";
 
   const parentRef = useRef<HTMLDivElement>(null);
+  const mobileParentRef = useRef<HTMLDivElement>(null);
 
   const activeSegments = SEGMENT_LABELS.filter((k) => segmentFilters[k] !== null);
   const activeSegCount = activeSegments.length;
   const hasColumnFilters = Object.values(columnFilters).some((s) => s.size > 0);
   const totalActiveFilters = Object.values(columnFilters).reduce((n, s) => n + s.size, 0);
+  const gridTemplateColumns = canSeeOperationalValues
+    ? ADMIN_GRID_TEMPLATE_COLUMNS
+    : LIMITED_GRID_TEMPLATE_COLUMNS;
+
+  const visiblePointList = useMemo(() => {
+    if (isAdmin) return pointList;
+    return pointList.filter((point) => point.template === "Real Energy");
+  }, [isAdmin, pointList]);
 
   // Client-side filter pipeline
   const filteredPoints = useMemo(() => {
-    let result = pointList;
+    let result = visiblePointList;
 
     if (filter !== "ALL") {
       result = result.filter((p) => p.mappingStatus === filter);
@@ -502,7 +604,7 @@ export function PointsTable() {
     }
 
     return result;
-  }, [pointList, filter, searchQuery, segmentFilters, columnFilters, sortColumn, sortDirection, showFaultPointsOnly]);
+  }, [visiblePointList, filter, searchQuery, segmentFilters, columnFilters, sortColumn, sortDirection, showFaultPointsOnly]);
 
   const virtualizer = useVirtualizer({
     count: filteredPoints.length,
@@ -511,9 +613,51 @@ export function PointsTable() {
     overscan: 20,
   });
 
+  const mobileVirtualizer = useVirtualizer({
+    count: filteredPoints.length,
+    getScrollElement: () => mobileParentRef.current,
+    estimateSize: () =>
+      canSeeOperationalValues ? MOBILE_CARD_HEIGHT_ADMIN : MOBILE_CARD_HEIGHT_LIMITED,
+    overscan: 10,
+  });
+
   const handleExport = useCallback(() => {
-    exportToExcel(filteredPoints);
-  }, [filteredPoints]);
+    if (!accessToken || filteredPoints.length === 0) return;
+
+    setIsExporting(true);
+
+    void api
+      .exportPointsReport(
+        accessToken,
+        filteredPoints.map((point) => ({
+          displayName: point.displayName,
+          indexCode: point.indexCode,
+          pointName: point.template,
+          serialNumber: point.serialNumber,
+          units: point.units,
+          bmsValue: canSeeOperationalValues ? point.n4Val : null,
+          ivivaValue: point.ivivaVal,
+          diff: canSeeOperationalValues ? getDiffDisplay(point) : null,
+          status: point.n4Status,
+        })),
+      )
+      .then((blob) => {
+        const objectUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = objectUrl;
+        link.download = `BMS_Points_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 60_000);
+      })
+      .catch((error) => {
+        window.alert(getApiErrorMessage(error));
+      })
+      .finally(() => {
+        setIsExporting(false);
+      });
+  }, [accessToken, canSeeOperationalValues, filteredPoints]);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -607,6 +751,17 @@ export function PointsTable() {
     async (point: PointData, file: File) => {
       if (!accessToken) return;
 
+      let preparedFile: File;
+      try {
+        preparedFile = await prepareAttachmentImageFile(file);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unable to prepare the selected image.";
+        setModalErrorMessage(message);
+        window.alert(message);
+        return;
+      }
+
       const existingAttachmentCount =
         summaryByPoint[point.displayName]?.attachmentCount ??
         attachmentsByPoint[point.displayName]?.length ??
@@ -631,7 +786,7 @@ export function PointsTable() {
           displayName: point.displayName,
           pointKey: point.pointKey ?? undefined,
           indexCode: point.indexCode ?? undefined,
-          file,
+          file: preparedFile,
         });
         await fetchPointResources(point);
       } catch (error) {
@@ -765,98 +920,136 @@ export function PointsTable() {
     <>
     <div className="flex flex-col flex-1 border border-slate-200 dark:border-slate-700/50 rounded-xl overflow-hidden bg-white dark:bg-slate-900/50">
       {/* Toolbar: Search + Segments + Actions */}
-      <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700/50 flex-wrap">
-        {/* Search */}
-        <div className="relative w-56">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-          <input
-            type="text"
-            placeholder="Search indexCode, displayName..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-8 w-full pl-7 pr-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-[11px] text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-200 dark:focus:ring-slate-700 focus:border-slate-300 dark:focus:border-slate-600"
-          />
+      <div className="border-b border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-700/50 dark:bg-slate-800/60 lg:px-4 lg:py-3">
+        <div className="flex items-center gap-2 lg:hidden">
+          <div className="relative min-w-0 flex-1">
+            <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+            <input
+              type="text"
+              placeholder="Search indexCode, displayName..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-8 w-full rounded-md border border-slate-200 bg-white pl-7 pr-3 text-[11px] text-slate-700 placeholder-slate-400 focus:border-slate-300 focus:outline-none focus:ring-1 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:placeholder-slate-500 dark:focus:border-slate-600 dark:focus:ring-slate-700"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setMobileFiltersOpen(true)}
+            className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-3 text-[11px] font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            Filters
+            {activeSegCount > 0 || hasColumnFilters ? (
+              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                {activeSegCount + totalActiveFilters}
+              </span>
+            ) : null}
+          </button>
         </div>
 
-        {/* Divider */}
-        <div className="w-px h-6 bg-slate-200 dark:bg-slate-700/60" />
+        <div className="mt-3 flex items-center justify-between gap-2 lg:hidden">
+          <span className="text-[11px] text-slate-400 dark:text-slate-500">
+            <span className="font-semibold text-slate-700 dark:text-slate-300">{filteredPoints.length.toLocaleString()}</span>
+            <span className="mx-0.5">/</span>
+            {visiblePointList.length.toLocaleString()}
+          </span>
+        </div>
 
-        {/* Segment Dropdowns */}
-        <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-        {SEGMENT_LABELS.map((label) => (
-          <SegmentDropdown
-            key={label}
-            label={label}
-            options={segmentOptions[label]}
-            value={segmentFilters[label]}
-            onChange={(val) => setSegmentFilter(label, val)}
-          />
-        ))}
-        {activeSegCount > 0 && (
+        <div className="hidden items-center gap-2 flex-wrap lg:flex">
+          <div className="relative w-56">
+            <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+            <input
+              type="text"
+              placeholder="Search indexCode, displayName..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-8 w-full rounded-md border border-slate-200 bg-white pl-7 pr-3 text-[11px] text-slate-700 placeholder-slate-400 focus:border-slate-300 focus:outline-none focus:ring-1 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:placeholder-slate-500 dark:focus:border-slate-600 dark:focus:ring-slate-700"
+            />
+          </div>
+
+          <div className="h-6 w-px bg-slate-200 dark:bg-slate-700/60" />
+
+          <SlidersHorizontal className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
+          {SEGMENT_LABELS.map((label) => (
+            <SegmentDropdown
+              key={label}
+              label={label}
+              options={segmentOptions[label]}
+              value={segmentFilters[label]}
+              onChange={(val) => setSegmentFilter(label, val)}
+            />
+          ))}
+          {activeSegCount > 0 ? (
+            <button
+              onClick={clearSegmentFilters}
+              className="flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-medium text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-red-400 dark:hover:bg-red-500/10 dark:hover:text-red-300"
+            >
+              <X className="h-3 w-3" />
+              Clear
+            </button>
+          ) : null}
+
+          <div className="flex-1" />
+
+          <span className="text-[11px] text-slate-400 dark:text-slate-500">
+            <span className="font-semibold text-slate-700 dark:text-slate-300">{filteredPoints.length.toLocaleString()}</span>
+            <span className="mx-0.5">/</span>
+            {visiblePointList.length.toLocaleString()}
+          </span>
+
+          {hasColumnFilters ? (
+            <button
+              onClick={clearAllColumnFilters}
+              className="flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-medium text-red-500 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
+            >
+              <FilterX className="h-3 w-3" />
+              Filters ({totalActiveFilters})
+            </button>
+          ) : null}
+
           <button
-            onClick={clearSegmentFilters}
-            className="flex h-8 items-center gap-1 px-2 rounded-md text-[11px] font-medium text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+            onClick={handleExport}
+            disabled={filteredPoints.length === 0 || isExporting}
+            className="flex h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-slate-100 px-3 text-[11px] font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-200/70 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-700/80 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <X className="w-3 h-3" />
-            Clear
+            {isExporting ? (
+              <ArrowUpDown className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Download className="h-3.5 w-3.5" />
+            )}
+            {isExporting ? "Preparing..." : "Export Excel"}
           </button>
-        )}
-
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Info + Actions */}
-        <span className="text-[11px] text-slate-400 dark:text-slate-500">
-          <span className="font-semibold text-slate-700 dark:text-slate-300">{filteredPoints.length.toLocaleString()}</span>
-          <span className="mx-0.5">/</span>
-          {pointList.length.toLocaleString()}
-        </span>
-
-        {hasColumnFilters && (
-          <button
-            onClick={clearAllColumnFilters}
-            className="flex h-8 items-center gap-1 px-2 rounded-md text-[11px] font-medium text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-          >
-            <FilterX className="w-3 h-3" />
-            Filters ({totalActiveFilters})
-          </button>
-        )}
-
-        <button
-          onClick={handleExport}
-          disabled={filteredPoints.length === 0}
-          className="flex h-8 items-center gap-1.5 px-3 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200/70 hover:border-slate-300 dark:bg-slate-800/80 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700/80 dark:hover:border-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <Download className="w-3.5 h-3.5" />
-          Export Excel
-        </button>
+        </div>
       </div>
 
       {/* Table Header: sort labels + filter icons */}
       <div
-        className="grid gap-1.5 border-b border-slate-200 bg-slate-50 px-3 py-1.5 dark:border-slate-700/50 dark:bg-slate-800/50"
-        style={{ gridTemplateColumns: GRID_TEMPLATE_COLUMNS }}
+        className="hidden lg:grid gap-1.5 border-b border-slate-200 bg-slate-50 px-3 py-1.5 dark:border-slate-700/50 dark:bg-slate-800/50"
+        style={{ gridTemplateColumns }}
       >
-        <ColumnHeader label="Index Code" column="indexCode" allPoints={pointList} />
-        <ColumnHeader label="Display Name" column="displayName" allPoints={pointList} />
-        <ColumnHeader label="Point Name" column="template" allPoints={pointList} />
-        <div className="flex items-center text-[10px] font-semibold tracking-wider text-slate-500 dark:text-slate-400">
-          SN
-        </div>
-        <ColumnHeader label="Units" column="units" align="center" allPoints={pointList} />
-        <ColumnHeader label="BMS" column="n4Val" align="center" allPoints={pointList} />
-        <ColumnHeader label="IVIVA" column="ivivaVal" align="center" allPoints={pointList} />
-        <ColumnHeader label="Diff" column="diff" align="center" allPoints={pointList} />
-        <ColumnHeader label="Status" column="n4Status" align="center" allPoints={pointList} />
+        <ColumnHeader label="Index Code" column="indexCode" allPoints={visiblePointList} />
+        <ColumnHeader label="Display Name" column="displayName" allPoints={visiblePointList} />
+        <ColumnHeader label="Point Name" column="template" allPoints={visiblePointList} />
+        <ColumnHeader label="SN" column="serialNumber" allPoints={visiblePointList} />
+        <ColumnHeader label="Units" column="units" align="center" allPoints={visiblePointList} />
+        {canSeeOperationalValues ? (
+          <ColumnHeader label="BMS" column="n4Val" align="center" allPoints={visiblePointList} />
+        ) : null}
+        <ColumnHeader label="IVIVA" column="ivivaVal" align="center" allPoints={visiblePointList} />
+        {canSeeOperationalValues ? (
+          <ColumnHeader label="Diff" column="diff" align="center" allPoints={visiblePointList} />
+        ) : null}
+        <ColumnHeader label="Status" column="n4Status" align="center" allPoints={visiblePointList} />
         <div className="flex items-center justify-center text-[10px] font-semibold tracking-wider text-slate-500 dark:text-slate-400">
         </div>
       </div>
 
-      {/* Virtualized Rows */}
-      <div ref={parentRef} className="flex-1 overflow-auto" style={{ minHeight: 0 }}>
+      {/* Desktop Virtualized Rows */}
+      <div ref={parentRef} className="hidden flex-1 overflow-auto lg:block" style={{ minHeight: 0 }}>
         {filteredPoints.length === 0 ? (
           <div className="flex items-center justify-center h-32 text-slate-500 text-sm">
-            {pointList.length === 0 ? "Waiting for data..." : "No points match your filter"}
+            {visiblePointList.length === 0 ? "Waiting for data..." : "No points match your filter"}
           </div>
         ) : (
           <div
@@ -884,7 +1077,7 @@ export function PointsTable() {
                     isChanged ? "row-flash" : ""
                   } ${isEven ? "bg-slate-50/50 dark:bg-slate-900/30" : "bg-transparent"} ${leftBorderClass} hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors`}
                   style={{
-                    gridTemplateColumns: GRID_TEMPLATE_COLUMNS,
+                    gridTemplateColumns,
                     position: "absolute",
                     top: 0,
                     left: 0,
@@ -902,19 +1095,21 @@ export function PointsTable() {
                   <div className="text-slate-500 dark:text-slate-400 truncate text-[11px]" title={point.template || "—"}>
                     {point.template || "—"}
                   </div>
-                  <div className="truncate font-mono text-[11px] text-slate-700 dark:text-slate-200" title={DUMMY_SERIAL_NUMBER}>
-                    {DUMMY_SERIAL_NUMBER}
+                    <div className="truncate font-mono text-[11px] text-slate-700 dark:text-slate-200" title={point.serialNumber || "-"}>
+                    {point.serialNumber || "-"}
                   </div>
                   <div className="text-slate-500 dark:text-slate-400 truncate text-[11px] text-center" title={point.units || "—"}>
                     {point.units || "—"}
                   </div>
-                  <div className={`text-center font-mono text-[11px] tabular-nums ${isChanged ? "text-emerald-600 dark:text-emerald-300 font-semibold" : "text-slate-700 dark:text-slate-300"}`}>
-                    {point.n4Val ?? "—"}
-                  </div>
+                  {canSeeOperationalValues ? (
+                    <div className={`text-center font-mono text-[11px] tabular-nums ${isChanged ? "text-emerald-600 dark:text-emerald-300 font-semibold" : "text-slate-700 dark:text-slate-300"}`}>
+                      {point.n4Val ?? "—"}
+                    </div>
+                  ) : null}
                   <div className="text-center font-mono text-[11px] tabular-nums text-slate-700 dark:text-slate-300">
                     {point.ivivaVal ?? "—"}
                   </div>
-                  <DiffCell n4Val={point.n4Val} ivivaVal={point.ivivaVal} />
+                  {canSeeOperationalValues ? <DiffCell n4Val={point.n4Val} ivivaVal={point.ivivaVal} /> : null}
                   <div className="flex justify-center">
                     <N4StatusDot status={point.n4Status} />
                   </div>
@@ -944,20 +1139,144 @@ export function PointsTable() {
           </div>
         )}
       </div>
+
+      {/* Mobile Card Rows */}
+      <div ref={mobileParentRef} className="flex-1 overflow-auto px-3 py-4 lg:hidden" style={{ minHeight: 0 }}>
+        {filteredPoints.length === 0 ? (
+          <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400">
+            {visiblePointList.length === 0 ? "Waiting for data..." : "No points match your filter"}
+          </div>
+        ) : (
+          <div
+            style={{
+              height: `${mobileVirtualizer.getTotalSize()}px`,
+              width: "100%",
+              position: "relative",
+            }}
+          >
+            {mobileVirtualizer.getVirtualItems().map((virtualRow) => {
+              const point = filteredPoints[virtualRow.index];
+
+              return (
+                <div
+                  key={point.displayName}
+                  className="absolute left-0 top-0 w-full box-border pb-4"
+                  style={{
+                    height: `${virtualRow.size}px`,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  <PointMobileCard
+                    point={point}
+                    isChanged={changedKeys.has(point.displayName)}
+                    showOperationalValues={canSeeOperationalValues}
+                    remarkCount={
+                      summaryByPoint[point.displayName]?.remarkCount ||
+                      (remarkLogsByPoint[point.displayName] || []).length
+                    }
+                    attachmentCount={
+                      summaryByPoint[point.displayName]?.attachmentCount ||
+                      (attachmentsByPoint[point.displayName] || []).length
+                    }
+                    isUploading={uploadingPointKey === point.displayName}
+                    currentUserRole={user?.role || null}
+                    onOpenLogs={() => handleOpenLogs(point)}
+                    onUploadFile={(file) => void handleUploadFile(point, file)}
+                    onOpenTrend={() => navigate(`/trend/${encodeURIComponent(point.displayName)}`)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
+    {mobileFiltersOpen ? (
+      <div className="fixed inset-0 z-[70] lg:hidden">
+        <button
+          type="button"
+          aria-label="Close filters"
+          onClick={() => setMobileFiltersOpen(false)}
+          className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px]"
+        />
+        <div className="absolute inset-x-0 bottom-0 max-h-[78dvh] overflow-y-auto rounded-t-3xl border-t border-slate-200 bg-white px-4 pb-6 pt-4 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+          <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-200 dark:bg-slate-700" />
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Filters</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">
+                Narrow the meter list for field checking.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMobileFiltersOpen(false)}
+              className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {SEGMENT_LABELS.map((label) => (
+              <label key={`mobile-${label}`} className="space-y-1.5">
+                <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                  {label}
+                </span>
+                <select
+                  value={segmentFilters[label] ?? ""}
+                  onChange={(event) =>
+                    setSegmentFilter(label, event.target.value || null)
+                  }
+                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition-colors focus:border-slate-300 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-slate-600"
+                >
+                  <option value="">All</option>
+                  {segmentOptions[label].map((option) => (
+                    <option key={`${label}-${option}`} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+          {activeSegCount > 0 || hasColumnFilters ? (
+            <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-200 pt-4 dark:border-slate-800">
+              {activeSegCount > 0 ? (
+                <button
+                  onClick={clearSegmentFilters}
+                  className="flex h-9 items-center gap-1 rounded-lg px-3 text-[11px] font-medium text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-red-400 dark:hover:bg-red-500/10 dark:hover:text-red-300"
+                >
+                  <X className="w-3 h-3" />
+                  Clear filters
+                </button>
+              ) : null}
+              {hasColumnFilters ? (
+                <button
+                  onClick={clearAllColumnFilters}
+                  className="flex h-9 items-center gap-1 rounded-lg px-3 text-[11px] font-medium text-red-500 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
+                >
+                  <FilterX className="w-3 h-3" />
+                  Clear columns
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    ) : null}
     {activePoint && (
         <PointResourceModal
           point={activePoint}
-          serialNumber={DUMMY_SERIAL_NUMBER}
+          serialNumber={activePoint.serialNumber || "-"}
           remarks={activeRemarks}
           attachments={activeAttachments}
           isLoading={isModalLoading}
           isSubmittingRemark={isSubmittingRemark}
           isUploading={uploadingPointKey === activePoint.displayName}
           errorMessage={modalErrorMessage}
-        remarkDraft={remarkDraft}
-        onRemarkDraftChange={setRemarkDraft}
-        onSubmitRemark={() => void handleCreateRemark()}
+          remarkDraft={remarkDraft}
+          onRemarkDraftChange={setRemarkDraft}
+          onSubmitRemark={() => void handleCreateRemark()}
           onRefresh={() => void loadPointDetails(activePoint)}
           onUploadFile={(file) => void handleUploadFile(activePoint, file)}
           onOpenAttachment={(attachment) => void handleOpenAttachment(attachment)}
@@ -970,10 +1289,10 @@ export function PointsTable() {
           onClose={() => {
             setActivePoint(null);
             setModalErrorMessage(null);
-          setRemarkDraft("");
-        }}
-      />
-    )}
+            setRemarkDraft("");
+          }}
+        />
+      )}
     </>
   );
 }
