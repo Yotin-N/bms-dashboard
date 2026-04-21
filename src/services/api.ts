@@ -166,6 +166,7 @@ export interface PointExportPayload {
 export interface BmsImportBatch {
   _id: string;
   fileName: string;
+  sourceName: string | null;
   fileType: "xlsx" | "csv";
   uploadedBy: string;
   uploadedAt: string;
@@ -195,6 +196,7 @@ export interface MappingPointRecord {
   slotPath?: string | null;
   sourceBatchId?: string | null;
   sourceBatchFileName?: string | null;
+  sourceBatchName?: string | null;
   controllerName: string | null;
   objectId: string | null;
   controllerId: string | null;
@@ -404,9 +406,37 @@ export interface ImportPointSourceRecord extends MappingPointRecord {
   batch: {
     _id: string;
     fileName: string;
+    sourceName?: string | null;
     isActive: boolean;
     uploadedAt: string | null;
   } | null;
+}
+
+export interface SyncActiveSourcesResponse {
+  message: string;
+  summary: {
+    obix: {
+      message: string;
+      summary: {
+        sourceCount: number;
+        discovered: number;
+        created: number;
+        updated: number;
+        skipped: number;
+        appliedToMaster: boolean;
+      };
+    };
+    iviva: {
+      message: string;
+      summary: {
+        sourceCount: number;
+        synced: number;
+        bacnetCandidates: number;
+        assetIds: number;
+        appliedToMaster: boolean;
+      };
+    };
+  };
 }
 
 export interface ImportPointSourcesResponse {
@@ -772,11 +802,15 @@ export const api = {
     accessToken: string,
     payload: {
       file: File;
+      sourceName?: string;
       notes?: string;
     },
   ) {
     const formData = new FormData();
     formData.append("file", payload.file);
+    if (payload.sourceName?.trim()) {
+      formData.append("sourceName", payload.sourceName.trim());
+    }
     if (payload.notes?.trim()) {
       formData.append("notes", payload.notes.trim());
     }
@@ -816,6 +850,7 @@ export const api = {
     batchId: string,
     payload: {
       isActive?: boolean;
+      sourceName?: string | null;
     },
   ) {
     return request<UpdateBmsImportBatchResponse>(`/bms-import/batches/${batchId}`, {
@@ -1105,6 +1140,13 @@ export const api = {
 
   syncIvivaSource(accessToken: string, sourceId: string) {
     return request<SyncIvivaSourceResponse>(`/bms-import/iviva-sources/${sourceId}/sync`, {
+      method: "POST",
+      accessToken,
+    });
+  },
+
+  syncActiveBmsSources(accessToken: string) {
+    return request<SyncActiveSourcesResponse>("/bms-import/sync-data", {
       method: "POST",
       accessToken,
     });

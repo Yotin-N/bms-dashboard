@@ -92,6 +92,16 @@ type IvivaSourceFormState = {
   queryText: string;
 };
 
+type SelectorRowMenuKind = "batch" | "obix" | "iviva";
+
+type SelectorRowMenuState = {
+  kind: SelectorRowMenuKind;
+  id: string;
+  right: number;
+  anchorTop: number;
+  placement: "top" | "bottom";
+};
+
 const DEFAULT_SOURCE_FORM: SourceFormState = {
   name: "",
   basePath: "",
@@ -308,8 +318,18 @@ function getReviewTooltip(row: MappingPointRecord) {
   return notes.length > 0 ? notes.join("\n") : "—";
 }
 
+function getBatchDisplayName(batch: Pick<BmsImportBatch, "fileName" | "sourceName"> | null | undefined) {
+  if (!batch) return "—";
+  return batch.sourceName?.trim() || batch.fileName || "—";
+}
+
+function getBatchFileSubLabel(batch: Pick<BmsImportBatch, "fileName" | "sourceName"> | null | undefined) {
+  if (!batch?.sourceName?.trim()) return null;
+  return batch.fileName;
+}
+
 function getBatchSourceLabel(row: MappingPointRecord) {
-  return row.sourceBatchFileName || "—";
+  return row.sourceBatchName || row.sourceBatchFileName || "—";
 }
 
 function getObixSourceLabel(
@@ -392,6 +412,11 @@ function escapeCsvValue(value: string | null | undefined) {
     return `"${normalized.replace(/"/g, '""')}"`;
   }
   return normalized;
+}
+
+function deriveBatchSourceName(fileName: string | null | undefined) {
+  if (!fileName) return "";
+  return fileName.replace(/\.[^.]+$/, "").trim();
 }
 
 function getRowTone(row: MappingPointRecord) {
@@ -585,13 +610,16 @@ export function BmsImportPage() {
   const { accessToken } = useAuth();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [sourceNameInput, setSourceNameInput] = useState("");
   const [notes, setNotes] = useState("");
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showSourceModal, setShowSourceModal] = useState(false);
   const [showIvivaSourceModal, setShowIvivaSourceModal] = useState(false);
   const [showBatchSelectorModal, setShowBatchSelectorModal] = useState(false);
+  const [showBatchSourceModal, setShowBatchSourceModal] = useState(false);
   const [showSourceSelectorModal, setShowSourceSelectorModal] = useState(false);
   const [showIvivaSourceSelectorModal, setShowIvivaSourceSelectorModal] = useState(false);
+  const [editingBatchSource, setEditingBatchSource] = useState<BmsImportBatch | null>(null);
   const [editingSource, setEditingSource] = useState<ObixSourceConfig | null>(null);
   const [editingIvivaSource, setEditingIvivaSource] = useState<IvivaSourceConfig | null>(null);
   const [sourceForm, setSourceForm] = useState<SourceFormState>(DEFAULT_SOURCE_FORM);
@@ -616,8 +644,10 @@ export function BmsImportPage() {
   const [loadingIvivaSources, setLoadingIvivaSources] = useState(false);
   const [loadingPoints, setLoadingPoints] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [batchSourceSubmitting, setBatchSourceSubmitting] = useState(false);
   const [discoveringSourceId, setDiscoveringSourceId] = useState<string | null>(null);
   const [syncingIvivaSourceId, setSyncingIvivaSourceId] = useState<string | null>(null);
+  const [syncingActiveSources, setSyncingActiveSources] = useState(false);
   const [deletingBatchId, setDeletingBatchId] = useState<string | null>(null);
   const [deletingSourceId, setDeletingSourceId] = useState<string | null>(null);
   const [deletingIvivaSourceId, setDeletingIvivaSourceId] = useState<string | null>(null);
@@ -652,6 +682,9 @@ export function BmsImportPage() {
   const [openSummaryMenu, setOpenSummaryMenu] = useState<
     "batch" | "source" | "iviva" | null
   >(null);
+  const [selectorRowMenu, setSelectorRowMenu] = useState<SelectorRowMenuState | null>(
+    null,
+  );
   const initialBatchSelectionDoneRef = useRef(false);
   const initialSourceSelectionDoneRef = useRef(false);
   const initialIvivaSourceSelectionDoneRef = useRef(false);
@@ -685,6 +718,40 @@ export function BmsImportPage() {
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [openSummaryMenu]);
+
+  useEffect(() => {
+    if (!selectorRowMenu) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("[data-row-menu]")) return;
+      setSelectorRowMenu(null);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [selectorRowMenu]);
+
+  useEffect(() => {
+    if (!selectorRowMenu) return;
+
+    const closeMenu = () => setSelectorRowMenu(null);
+
+    window.addEventListener("scroll", closeMenu, true);
+    window.addEventListener("resize", closeMenu);
+    return () => {
+      window.removeEventListener("scroll", closeMenu, true);
+      window.removeEventListener("resize", closeMenu);
+    };
+  }, [selectorRowMenu]);
+
+  useEffect(() => {
+    if (showBatchSelectorModal || showSourceSelectorModal || showIvivaSourceSelectorModal) {
+      return;
+    }
+
+    setSelectorRowMenu(null);
+  }, [showBatchSelectorModal, showIvivaSourceSelectorModal, showSourceSelectorModal]);
 
   useEffect(() => {
     if (!noteTooltip) return;
@@ -881,7 +948,11 @@ export function BmsImportPage() {
   ]);
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setSelectedFile(event.target.files?.[0] ?? null);
+    const nextFile = event.target.files?.[0] ?? null;
+    setSelectedFile(nextFile);
+    if (nextFile && !sourceNameInput.trim()) {
+      setSourceNameInput(deriveBatchSourceName(nextFile.name));
+    }
   };
 
   const handleSort = (column: MasterSortField) => {
@@ -1066,10 +1137,24 @@ export function BmsImportPage() {
 
   const resetUploadForm = () => {
     setSelectedFile(null);
+    setSourceNameInput("");
     setNotes("");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+  };
+
+  const openBatchSourceModal = (batch: BmsImportBatch) => {
+    setEditingBatchSource(batch);
+    setSourceNameInput(batch.sourceName?.trim() || deriveBatchSourceName(batch.fileName));
+    setShowBatchSourceModal(true);
+  };
+
+  const closeBatchSourceModal = () => {
+    if (batchSourceSubmitting) return;
+    setShowBatchSourceModal(false);
+    setEditingBatchSource(null);
+    setSourceNameInput("");
   };
 
   const handleExportRawCsv = () => {
@@ -1080,7 +1165,7 @@ export function BmsImportPage() {
       "BACnet Key",
       "Metadata Status",
       "IVIVA Mapping",
-      "Batch Source",
+      "CSV Source",
       "oBIX Source",
       "IVIVA Source",
       "Review Note",
@@ -1135,6 +1220,32 @@ export function BmsImportPage() {
     });
   };
 
+  const openSelectorRowMenu = (
+    event: ReactMouseEvent<HTMLButtonElement>,
+    kind: SelectorRowMenuKind,
+    id: string,
+  ) => {
+    event.stopPropagation();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const estimatedMenuHeight = kind === "batch" ? 144 : 176;
+    const placement =
+      rect.bottom + estimatedMenuHeight + 16 > window.innerHeight ? "top" : "bottom";
+
+    setSelectorRowMenu((current) => {
+      if (current?.kind === kind && current.id === id) {
+        return null;
+      }
+
+      return {
+        kind,
+        id,
+        right: Math.max(16, window.innerWidth - rect.right),
+        anchorTop: placement === "bottom" ? rect.bottom : rect.top,
+        placement,
+      };
+    });
+  };
+
   const handleUpload = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!accessToken || !selectedFile) {
@@ -1150,6 +1261,7 @@ export function BmsImportPage() {
     try {
       const response = await api.uploadBmsImportBatch(accessToken, {
         file: selectedFile,
+        sourceName: sourceNameInput,
         notes,
       });
 
@@ -1167,6 +1279,36 @@ export function BmsImportPage() {
       setMessage({ type: "error", text: getErrorMessage(error) });
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleBatchSourceSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!accessToken || !editingBatchSource) return;
+
+    setBatchSourceSubmitting(true);
+    setMessage(null);
+    try {
+      const response = await api.updateBmsImportBatch(accessToken, editingBatchSource._id, {
+        sourceName: sourceNameInput.trim() || null,
+      });
+
+      await loadBatches(editingBatchSource._id);
+      if (selectedBatchId === editingBatchSource._id) {
+        setSelectedBatch(response.batch);
+      }
+      setRefreshNonce((current) => current + 1);
+      setShowBatchSourceModal(false);
+      setEditingBatchSource(null);
+      setSourceNameInput("");
+      setMessage({
+        type: "success",
+        text: `CSV source name updated to "${getBatchDisplayName(response.batch)}".`,
+      });
+    } catch (error) {
+      setMessage({ type: "error", text: getErrorMessage(error) });
+    } finally {
+      setBatchSourceSubmitting(false);
     }
   };
 
@@ -1358,6 +1500,34 @@ export function BmsImportPage() {
       setMessage({ type: "error", text: getErrorMessage(error) });
     } finally {
       setSyncingIvivaSourceId(null);
+    }
+  };
+
+  const handleSyncActiveSources = async () => {
+    if (!accessToken || syncingActiveSources) return;
+
+    setSyncingActiveSources(true);
+    setMessage({
+      type: "loading",
+      text: "Syncing all active oBIX and IVIVA sources...",
+    });
+
+    try {
+      const response = await api.syncActiveBmsSources(accessToken);
+      await Promise.all([
+        loadSources(selectedSourceId),
+        loadIvivaSources(selectedIvivaSourceId),
+        selectedBatchId ? loadBatches(selectedBatchId) : loadBatches(),
+      ]);
+      setRefreshNonce((current) => current + 1);
+      setMessage({
+        type: "success",
+        text: `${response.message} • ${response.summary.obix.summary.sourceCount} oBIX source(s), ${response.summary.iviva.summary.sourceCount} IVIVA source(s).`,
+      });
+    } catch (error) {
+      setMessage({ type: "error", text: getErrorMessage(error) });
+    } finally {
+      setSyncingActiveSources(false);
     }
   };
 
@@ -1557,6 +1727,30 @@ export function BmsImportPage() {
     [ivivaSources, selectedIvivaSourceId],
   );
 
+  const selectorRowMenuBatch = useMemo(
+    () =>
+      selectorRowMenu?.kind === "batch"
+        ? batches.find((batch) => batch._id === selectorRowMenu.id) ?? null
+        : null,
+    [batches, selectorRowMenu],
+  );
+
+  const selectorRowMenuSource = useMemo(
+    () =>
+      selectorRowMenu?.kind === "obix"
+        ? sources.find((source) => source._id === selectorRowMenu.id) ?? null
+        : null,
+    [selectorRowMenu, sources],
+  );
+
+  const selectorRowMenuIvivaSource = useMemo(
+    () =>
+      selectorRowMenu?.kind === "iviva"
+        ? ivivaSources.find((source) => source._id === selectorRowMenu.id) ?? null
+        : null,
+    [ivivaSources, selectorRowMenu],
+  );
+
   return (
     <div className="flex flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-5 dark:bg-slate-950">
       <div className="mx-auto flex min-h-0 w-full max-w-[1560px] flex-1 flex-col gap-4">
@@ -1616,11 +1810,11 @@ export function BmsImportPage() {
                     ACTIVE IMPORT BATCH
                   </div>
                   <div className="mt-1 truncate text-[13px] font-semibold text-slate-900 dark:text-slate-100">
-                    {selectedBatch?.fileName || "No batch selected"}
+                    {selectedBatch ? getBatchDisplayName(selectedBatch) : "No batch selected"}
                   </div>
-                  <div className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                  <div className="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-400">
                     {selectedBatch
-                      ? `${formatTimestamp(selectedBatch.uploadedAt)} • ${selectedBatch.totalRows.toLocaleString()} rows`
+                      ? `${getBatchFileSubLabel(selectedBatch) ? `${getBatchFileSubLabel(selectedBatch)} • ` : ""}${formatTimestamp(selectedBatch.uploadedAt)} • ${selectedBatch.totalRows.toLocaleString()} rows`
                       : "Choose a JACE upload to review."}
                   </div>
                 </div>
@@ -1666,6 +1860,19 @@ export function BmsImportPage() {
                         <Upload className="h-3.5 w-3.5" />
                         Upload batch
                       </button>
+                      {selectedBatch ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenSummaryMenu(null);
+                            openBatchSourceModal(selectedBatch);
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-slate-600 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Edit CSV source name
+                        </button>
+                      ) : null}
                       {selectedBatch ? (
                         <button
                           type="button"
@@ -1926,7 +2133,7 @@ export function BmsImportPage() {
                     <input
                       value={searchInput}
                       onChange={(event) => setSearchInput(event.target.value)}
-                      placeholder="Search display name, BACnet key, batch, oBIX, IVIVA"
+                      placeholder="Search display name, BACnet key, CSV source, oBIX, IVIVA"
                       className="h-8 w-full rounded-md border border-slate-200 bg-white pl-7 pr-3 text-[11px] text-slate-700 placeholder-slate-400 outline-none transition-colors focus:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:placeholder-slate-500 dark:focus:border-slate-600"
                     />
               </div>
@@ -1989,6 +2196,19 @@ export function BmsImportPage() {
                 </span>
                 <button
                   type="button"
+                  onClick={() => void handleSyncActiveSources()}
+                  disabled={syncingActiveSources || Boolean(discoveringSourceId) || Boolean(syncingIvivaSourceId)}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-slate-100 px-3 text-[11px] font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-200/70 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-700/80"
+                >
+                  {syncingActiveSources ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  )}
+                  Sync data
+                </button>
+                <button
+                  type="button"
                   onClick={handleExportRawCsv}
                   disabled={filteredPoints.length === 0}
                   className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-slate-100 px-3 text-[11px] font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-200/70 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-700/80"
@@ -2047,9 +2267,10 @@ export function BmsImportPage() {
               filterOptions={columnFilterOptions.matchStatus}
               onToggleFilterValue={(value) => toggleColumnFilterValue("matchStatus", value)}
               onClearFilter={() => clearColumnFilter("matchStatus")}
+              dropdownPosition="left"
             />
             <HeaderControl
-              label="Batch Source"
+              label="CSV Source"
               column="sourceBatchFileName"
               sortColumn={sortColumn}
               sortDirection={sortDirection}
@@ -2209,6 +2430,82 @@ export function BmsImportPage() {
         </div>
       ) : null}
 
+      {showBatchSourceModal && editingBatchSource ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-start justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
+              <div>
+                <div className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                  Edit CSV source name
+                </div>
+                <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  Rename how this batch appears in the review filter and source column.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeBatchSourceModal}
+                className="rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                aria-label="Close CSV source modal"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleBatchSourceSubmit} className="space-y-4 px-5 py-5">
+              <div>
+                <div className="mb-2 text-xs font-medium text-slate-600 dark:text-slate-300">
+                  Batch file
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
+                  {editingBatchSource.fileName}
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-300">
+                  CSV source name
+                </label>
+                <input
+                  type="text"
+                  value={sourceNameInput}
+                  onChange={(event) => setSourceNameInput(event.target.value)}
+                  placeholder={deriveBatchSourceName(editingBatchSource.fileName)}
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-slate-300 focus:ring-1 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-slate-600 dark:focus:ring-slate-700"
+                />
+                <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  Leave blank if you want this batch to fall back to the file name.
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={closeBatchSourceModal}
+                  className="inline-flex h-9 items-center rounded-md border border-slate-200 px-3 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={batchSourceSubmitting}
+                  className="inline-flex h-9 items-center gap-2 rounded-md bg-slate-900 px-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+                >
+                  {batchSourceSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
       {showBatchSelectorModal ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4">
           <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
@@ -2245,19 +2542,17 @@ export function BmsImportPage() {
                 <div className="space-y-3">
                   {batches.map((batch) => {
                     const isActive = batch._id === selectedBatchId;
-                    const isDeleting = deletingBatchId === batch._id;
-                    const isToggling = togglingBatchId === batch._id;
 
                     return (
                       <div
                         key={batch._id}
-                        className={`block w-full cursor-pointer rounded-xl border px-4 py-3 text-left transition ${
+                        className={`cursor-pointer rounded-xl border px-4 py-3 transition ${
                           isActive
                             ? "border-slate-300 bg-slate-100 dark:border-slate-600 dark:bg-slate-800"
                             : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-500 dark:hover:bg-slate-800"
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                           <button
                             type="button"
                             onClick={() => {
@@ -2268,60 +2563,31 @@ export function BmsImportPage() {
                             className="min-w-0 text-left"
                           >
                             <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
-                              {batch.fileName}
+                              {getBatchDisplayName(batch)}
                             </div>
-                            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                              {formatTimestamp(batch.uploadedAt)}
+                            {getBatchFileSubLabel(batch) ? (
+                              <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                                {getBatchFileSubLabel(batch)}
+                              </div>
+                            ) : null}
+                            <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                              {batch.isActive ? "Active" : "Inactive"} • {batch.status} •{" "}
+                              {batch.totalRows} rows • {formatTimestamp(batch.uploadedAt)}
+                            </div>
+                            <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                              {batch.validRows} valid • {batch.invalidRows} invalid
                             </div>
                           </button>
-                          <div className="flex shrink-0 items-center gap-2">
-                            <BatchActiveBadge isActive={batch.isActive} />
-                            <BatchStatusBadge status={batch.status} />
+
+                          <div className="relative flex shrink-0 items-start" data-row-menu>
                             <button
                               type="button"
-                              onClick={() => void handleToggleBatchActive(batch)}
-                              disabled={Boolean(togglingBatchId) || Boolean(deletingBatchId)}
-                              className="inline-flex h-8 items-center rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-medium text-slate-700 transition hover:bg-slate-50 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:border-slate-600"
+                              onClick={(event) => openSelectorRowMenu(event, "batch", batch._id)}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                              aria-label={`Actions for ${getBatchDisplayName(batch)}`}
                             >
-                              {isToggling
-                                ? "Updating..."
-                                : batch.isActive
-                                  ? "Deactivate"
-                                  : "Activate"}
+                              <MoreHorizontal className="h-3.5 w-3.5" />
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => void handleDeleteBatch(batch)}
-                              disabled={Boolean(deletingBatchId) || Boolean(togglingBatchId)}
-                              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-rose-200 bg-white px-2.5 text-[11px] font-medium text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/30 dark:bg-slate-900 dark:text-rose-300 dark:hover:bg-rose-500/10"
-                            >
-                              {isDeleting ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-3.5 w-3.5" />
-                              )}
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                        <div className="mt-3 grid grid-cols-3 gap-3 text-xs text-slate-500 dark:text-slate-400">
-                          <div>
-                            <div>Total</div>
-                            <div className="mt-1 font-semibold text-slate-700 dark:text-slate-200">
-                              {batch.totalRows}
-                            </div>
-                          </div>
-                          <div>
-                            <div>Valid</div>
-                            <div className="mt-1 font-semibold text-slate-700 dark:text-slate-200">
-                              {batch.validRows}
-                            </div>
-                          </div>
-                          <div>
-                            <div>Invalid</div>
-                            <div className="mt-1 font-semibold text-slate-700 dark:text-slate-200">
-                              {batch.invalidRows}
-                            </div>
                           </div>
                         </div>
                       </div>
@@ -2384,8 +2650,6 @@ export function BmsImportPage() {
                 <div className="space-y-3">
                   {sources.map((source) => {
                     const isActive = source._id === selectedSourceId;
-                    const isDeleting = deletingSourceId === source._id;
-                    const isToggling = togglingSourceId === source._id;
 
                     return (
                       <div
@@ -2405,81 +2669,29 @@ export function BmsImportPage() {
                             }}
                             className="min-w-0 text-left"
                           >
-                            <div className="flex items-center gap-2">
-                              <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
-                                {source.name}
-                              </div>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  void handleToggleSourceEnabled(source);
-                                }}
-                                disabled={Boolean(togglingSourceId) || Boolean(deletingSourceId)}
-                                className="inline-flex h-6 items-center rounded-md border border-slate-200 bg-white px-2 text-[10px] font-medium text-slate-700 transition hover:bg-slate-50 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:border-slate-600"
-                              >
-                                {isToggling
-                                  ? "..."
-                                  : source.enabled
-                                    ? "Manual"
-                                    : "Auto"}
-                              </button>
+                            <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+                              {source.name}
                             </div>
                             <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
                               {source.basePath}
                             </div>
-                            <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                            <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                              {source.enabled ? "Enabled" : "Disabled"} • {source.refreshMode === "scheduled" ? "Scheduled" : "Manual"}
+                              {source.username?.trim() ? ` • ${source.username}` : ""}
                               {source.lastDiscoveredAt
-                                ? `${source.lastDiscoveryPointCount ?? 0} points • ${formatTimestamp(source.lastDiscoveredAt)}`
+                                ? ` • ${source.lastDiscoveryPointCount ?? 0} points • ${formatTimestamp(source.lastDiscoveredAt)}`
                                 : "No discovery run yet"}
                             </div>
                           </button>
 
-                          <div className="flex shrink-0 items-center gap-2">
+                          <div className="relative flex shrink-0 items-start" data-row-menu>
                             <button
                               type="button"
-                              onClick={() => {
-                                setShowSourceSelectorModal(false);
-                                openSourceModal(source);
-                              }}
-                              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 text-[11px] font-medium text-slate-700 transition hover:bg-slate-50 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:border-slate-600"
+                              onClick={(event) => openSelectorRowMenu(event, "obix", source._id)}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                              aria-label={`Actions for ${source.name}`}
                             >
-                              <Pencil className="h-3.5 w-3.5" />
-                              Edit
-                            </button>
-                            <SourceStatusBadge
-                              enabled={source.enabled}
-                              mode={source.refreshMode}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => void handleDiscover(source)}
-                              disabled={
-                                discoveringSourceId === source._id ||
-                                Boolean(deletingSourceId) ||
-                                Boolean(togglingSourceId)
-                              }
-                              className="inline-flex h-8 items-center gap-1.5 rounded-md bg-slate-900 px-3 text-[11px] font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
-                            >
-                              {discoveringSourceId === source._id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <RefreshCw className="h-3.5 w-3.5" />
-                              )}
-                              Discover
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => openDeleteSourceModal(source)}
-                              disabled={Boolean(deletingSourceId) || Boolean(togglingSourceId)}
-                              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-rose-200 bg-white px-3 text-[11px] font-medium text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/30 dark:bg-slate-900 dark:text-rose-300 dark:hover:bg-rose-500/10"
-                            >
-                              {isDeleting ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-3.5 w-3.5" />
-                              )}
-                              Delete
+                              <MoreHorizontal className="h-3.5 w-3.5" />
                             </button>
                           </div>
                         </div>
@@ -2543,9 +2755,6 @@ export function BmsImportPage() {
                 <div className="space-y-3">
                   {ivivaSources.map((source) => {
                     const isActive = source._id === selectedIvivaSourceId;
-                    const isDeleting = deletingIvivaSourceId === source._id;
-                    const isToggling = togglingIvivaSourceId === source._id;
-                    const isSyncing = syncingIvivaSourceId === source._id;
 
                     return (
                       <div
@@ -2565,81 +2774,29 @@ export function BmsImportPage() {
                             }}
                             className="min-w-0 text-left"
                           >
-                            <div className="flex items-center gap-2">
-                              <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
-                                {source.name}
-                              </div>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  void handleToggleIvivaSourceEnabled(source);
-                                }}
-                                disabled={Boolean(togglingIvivaSourceId) || Boolean(deletingIvivaSourceId)}
-                                className="inline-flex h-6 items-center rounded-md border border-slate-200 bg-white px-2 text-[10px] font-medium text-slate-700 transition hover:bg-slate-50 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:border-slate-600"
-                              >
-                                {isToggling
-                                  ? "..."
-                                  : source.enabled
-                                    ? "Manual"
-                                    : "Auto"}
-                              </button>
+                            <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+                              {source.name}
                             </div>
                             <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
                               {source.database} @ {source.server}
                             </div>
                             <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
-                              {source.username} •{" "}
+                              {source.enabled ? "Enabled" : "Disabled"} • {source.refreshMode === "scheduled" ? "Scheduled" : "Manual"}
+                              {source.username ? ` • ${source.username}` : ""} •{" "}
                               {source.lastSyncedAt
                                 ? `${source.lastSyncRowCount ?? 0} rows • ${formatTimestamp(source.lastSyncedAt)}`
                                 : "Query configured, no sync yet"}
                             </div>
                           </button>
 
-                          <div className="flex shrink-0 items-center gap-2">
+                          <div className="relative flex shrink-0 items-start" data-row-menu>
                             <button
                               type="button"
-                              onClick={() => {
-                                setShowIvivaSourceSelectorModal(false);
-                                openIvivaSourceModal(source);
-                              }}
-                              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 text-[11px] font-medium text-slate-700 transition hover:bg-slate-50 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:border-slate-600"
+                              onClick={(event) => openSelectorRowMenu(event, "iviva", source._id)}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                              aria-label={`Actions for ${source.name}`}
                             >
-                              <Pencil className="h-3.5 w-3.5" />
-                              Edit
-                            </button>
-                            <SourceStatusBadge
-                              enabled={source.enabled}
-                              mode={source.refreshMode}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => void handleSyncIvivaSource(source)}
-                              disabled={
-                                Boolean(syncingIvivaSourceId) ||
-                                Boolean(togglingIvivaSourceId) ||
-                                Boolean(deletingIvivaSourceId)
-                              }
-                              className="inline-flex h-8 items-center rounded-md border border-slate-200 bg-white px-3 text-[11px] font-medium text-slate-700 transition hover:bg-slate-50 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:border-slate-600"
-                            >
-                              {isSyncing ? "Syncing..." : "Sync"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => openDeleteIvivaSourceModal(source)}
-                              disabled={
-                                Boolean(deletingIvivaSourceId) ||
-                                Boolean(syncingIvivaSourceId) ||
-                                Boolean(togglingIvivaSourceId)
-                              }
-                              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-rose-200 bg-white px-3 text-[11px] font-medium text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/30 dark:bg-slate-900 dark:text-rose-300 dark:hover:bg-rose-500/10"
-                            >
-                              {isDeleting ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-3.5 w-3.5" />
-                              )}
-                              Delete
+                              <MoreHorizontal className="h-3.5 w-3.5" />
                             </button>
                           </div>
                         </div>
@@ -2650,6 +2807,228 @@ export function BmsImportPage() {
               )}
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {selectorRowMenu && selectorRowMenuBatch ? (
+        <div
+          className="fixed z-[60] min-w-[188px] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg shadow-slate-900/10 dark:border-slate-700/50 dark:bg-slate-900 dark:shadow-black/30"
+          style={
+            selectorRowMenu.placement === "bottom"
+              ? {
+                  top: selectorRowMenu.anchorTop + 8,
+                  right: selectorRowMenu.right,
+                }
+              : {
+                  bottom: window.innerHeight - selectorRowMenu.anchorTop + 8,
+                  right: selectorRowMenu.right,
+                }
+          }
+          data-row-menu
+        >
+          <button
+            type="button"
+            onClick={() => {
+              setSelectorRowMenu(null);
+              setShowBatchSelectorModal(false);
+              openBatchSourceModal(selectorRowMenuBatch);
+            }}
+            disabled={Boolean(togglingBatchId) || Boolean(deletingBatchId)}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Rename source
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectorRowMenu(null);
+              void handleToggleBatchActive(selectorRowMenuBatch);
+            }}
+            disabled={Boolean(togglingBatchId) || Boolean(deletingBatchId)}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            {togglingBatchId === selectorRowMenuBatch._id
+              ? "Updating..."
+              : selectorRowMenuBatch.isActive
+                ? "Deactivate source"
+                : "Activate source"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectorRowMenu(null);
+              void handleDeleteBatch(selectorRowMenuBatch);
+            }}
+            disabled={Boolean(deletingBatchId) || Boolean(togglingBatchId)}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-rose-300 dark:hover:bg-rose-500/10"
+          >
+            {deletingBatchId === selectorRowMenuBatch._id ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" />
+            )}
+            Delete source
+          </button>
+        </div>
+      ) : null}
+
+      {selectorRowMenu && selectorRowMenuSource ? (
+        <div
+          className="fixed z-[60] min-w-[188px] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg shadow-slate-900/10 dark:border-slate-700/50 dark:bg-slate-900 dark:shadow-black/30"
+          style={
+            selectorRowMenu.placement === "bottom"
+              ? {
+                  top: selectorRowMenu.anchorTop + 8,
+                  right: selectorRowMenu.right,
+                }
+              : {
+                  bottom: window.innerHeight - selectorRowMenu.anchorTop + 8,
+                  right: selectorRowMenu.right,
+                }
+          }
+          data-row-menu
+        >
+          <button
+            type="button"
+            onClick={() => {
+              setSelectorRowMenu(null);
+              void handleToggleSourceEnabled(selectorRowMenuSource);
+            }}
+            disabled={Boolean(togglingSourceId) || Boolean(deletingSourceId)}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            {selectorRowMenuSource.enabled ? "Deactivate source" : "Activate source"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectorRowMenu(null);
+              setShowSourceSelectorModal(false);
+              openSourceModal(selectorRowMenuSource);
+            }}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-slate-600 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Edit source
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectorRowMenu(null);
+              void handleDiscover(selectorRowMenuSource);
+            }}
+            disabled={
+              discoveringSourceId === selectorRowMenuSource._id ||
+              Boolean(deletingSourceId) ||
+              Boolean(togglingSourceId)
+            }
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            {discoveringSourceId === selectorRowMenuSource._id
+              ? "Discovering..."
+              : "Discover now"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectorRowMenu(null);
+              openDeleteSourceModal(selectorRowMenuSource);
+            }}
+            disabled={Boolean(deletingSourceId) || Boolean(togglingSourceId)}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-rose-300 dark:hover:bg-rose-500/10"
+          >
+            {deletingSourceId === selectorRowMenuSource._id ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" />
+            )}
+            Delete source
+          </button>
+        </div>
+      ) : null}
+
+      {selectorRowMenu && selectorRowMenuIvivaSource ? (
+        <div
+          className="fixed z-[60] min-w-[188px] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg shadow-slate-900/10 dark:border-slate-700/50 dark:bg-slate-900 dark:shadow-black/30"
+          style={
+            selectorRowMenu.placement === "bottom"
+              ? {
+                  top: selectorRowMenu.anchorTop + 8,
+                  right: selectorRowMenu.right,
+                }
+              : {
+                  bottom: window.innerHeight - selectorRowMenu.anchorTop + 8,
+                  right: selectorRowMenu.right,
+                }
+          }
+          data-row-menu
+        >
+          <button
+            type="button"
+            onClick={() => {
+              setSelectorRowMenu(null);
+              void handleToggleIvivaSourceEnabled(selectorRowMenuIvivaSource);
+            }}
+            disabled={Boolean(togglingIvivaSourceId) || Boolean(deletingIvivaSourceId)}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            {selectorRowMenuIvivaSource.enabled ? "Deactivate source" : "Activate source"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectorRowMenu(null);
+              setShowIvivaSourceSelectorModal(false);
+              openIvivaSourceModal(selectorRowMenuIvivaSource);
+            }}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-slate-600 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Edit source
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectorRowMenu(null);
+              void handleSyncIvivaSource(selectorRowMenuIvivaSource);
+            }}
+            disabled={
+              Boolean(syncingIvivaSourceId) ||
+              Boolean(togglingIvivaSourceId) ||
+              Boolean(deletingIvivaSourceId)
+            }
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            {syncingIvivaSourceId === selectorRowMenuIvivaSource._id
+              ? "Syncing..."
+              : "Sync now"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectorRowMenu(null);
+              openDeleteIvivaSourceModal(selectorRowMenuIvivaSource);
+            }}
+            disabled={
+              Boolean(deletingIvivaSourceId) ||
+              Boolean(syncingIvivaSourceId) ||
+              Boolean(togglingIvivaSourceId)
+            }
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-rose-300 dark:hover:bg-rose-500/10"
+          >
+            {deletingIvivaSourceId === selectorRowMenuIvivaSource._id ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" />
+            )}
+            Delete source
+          </button>
         </div>
       ) : null}
 
@@ -2702,6 +3081,22 @@ export function BmsImportPage() {
                     </div>
                   </div>
                 </label>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-300">
+                  CSV source name
+                </label>
+                <input
+                  type="text"
+                  value={sourceNameInput}
+                  onChange={(event) => setSourceNameInput(event.target.value)}
+                  placeholder="Example: R2 Component"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-slate-300 focus:ring-1 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-slate-600 dark:focus:ring-slate-700"
+                />
+                <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  This label will be used as the CSV source filter on the review table.
+                </div>
               </div>
 
               <div>

@@ -5,11 +5,15 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  ChevronDown,
   Download,
   Filter,
   FilterX,
+  Loader2,
+  RefreshCw,
   Search,
   SlidersHorizontal,
+  X,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthProvider";
 import { ApiError, api, type MappingPointRecord } from "../services/api";
@@ -179,6 +183,10 @@ function formatIndexCode(row: MappingPointRecord) {
   return row.indexCodeCandidate || "—";
 }
 
+function formatComponent(row: MappingPointRecord) {
+  return row.sourceBatchName || row.sourceBatchFileName || "Unassigned";
+}
+
 function formatBmsValue(row: MappingPointRecord) {
   return row.bmsValue || "—";
 }
@@ -189,6 +197,7 @@ function formatIvivaValue(row: MappingPointRecord) {
 
 function getRowSearchText(row: MappingPointRecord) {
   return [
+    formatComponent(row),
     formatIndexCode(row),
     row.displayName || "",
     formatPointName(row),
@@ -224,6 +233,101 @@ function getSortValue(row: MappingPointRecord, field: SortField) {
     default:
       return "—";
   }
+}
+
+function ComponentFilterDropdown({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+  const active = value !== "All components";
+
+  useEffect(() => {
+    function handle(event: MouseEvent) {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className={`flex h-8 items-center gap-1 whitespace-nowrap rounded-md px-2 text-[11px] font-medium transition-all ${
+          active
+            ? "border border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-600 dark:bg-slate-700/70 dark:text-slate-200"
+            : "border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-slate-300"
+        }`}
+      >
+        <span className="text-slate-400 dark:text-slate-500">Component</span>
+        {active ? (
+          <>
+            <span className="rounded bg-slate-200 px-1 text-[10px] font-semibold text-slate-700 dark:bg-slate-600/80 dark:text-slate-100">
+              {value}
+            </span>
+            <X
+              className="h-3 w-3 text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white"
+              onClick={(event) => {
+                event.stopPropagation();
+                onChange("All components");
+              }}
+            />
+          </>
+        ) : (
+          <ChevronDown className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`} />
+        )}
+      </button>
+
+      {open ? (
+        <div className="absolute left-0 top-full z-[90] mt-1 max-h-[220px] min-w-[160px] overflow-auto rounded-lg border border-slate-200 bg-white shadow-xl shadow-black/10 dark:border-slate-700 dark:bg-slate-800 dark:shadow-black/30">
+          <button
+            type="button"
+            onClick={() => {
+              onChange("All components");
+              setOpen(false);
+            }}
+            className={`w-full px-3 py-1.5 text-left text-xs transition-colors ${
+              !active
+                ? "bg-slate-100 text-slate-700 dark:bg-slate-700/70 dark:text-slate-200"
+                : "text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+            }`}
+          >
+            All
+          </button>
+          <div className="border-t border-slate-200 dark:border-slate-700/50" />
+          {options
+            .filter((option) => option !== "All components")
+            .map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => {
+                  onChange(option);
+                  setOpen(false);
+                }}
+                className={`w-full px-3 py-1.5 text-left text-xs transition-colors ${
+                  value === option
+                    ? "bg-slate-100 font-semibold text-slate-700 dark:bg-slate-700/70 dark:text-slate-200"
+                    : "text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function getFilterValue(row: MappingPointRecord, field: FilterColumn) {
@@ -271,12 +375,14 @@ function ColumnFilterDropdown({
   selected,
   onToggle,
   onClear,
+  position = "left",
 }: {
   column: FilterColumn;
   allPoints: MappingPointRecord[];
   selected: Set<string>;
   onToggle: (value: string) => void;
   onClear: () => void;
+  position?: "left" | "right" | "center";
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -324,7 +430,15 @@ function ColumnFilterDropdown({
         <Filter className="h-2.5 w-2.5" />
       </button>
       {open ? (
-        <div className="absolute left-0 top-full z-50 mt-1 w-64 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl shadow-black/10 dark:border-slate-700 dark:bg-slate-800 dark:shadow-black/30">
+        <div
+          className={`absolute top-full z-50 mt-1 w-64 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl shadow-black/10 dark:border-slate-700 dark:bg-slate-800 dark:shadow-black/30 ${
+            position === "right"
+              ? "right-0"
+              : position === "center"
+                ? "left-1/2 -translate-x-1/2"
+                : "left-0"
+          }`}
+        >
           <div className="p-1.5">
             <input
               type="text"
@@ -389,6 +503,7 @@ function ColumnHeader({
   onToggleFilterValue,
   onClearFilter,
   align = "left",
+  dropdownPosition = "left",
 }: {
   label: string;
   column: SortField;
@@ -401,6 +516,7 @@ function ColumnHeader({
   onToggleFilterValue?: (value: string) => void;
   onClearFilter?: () => void;
   align?: "left" | "center";
+  dropdownPosition?: "left" | "right" | "center";
 }) {
   const alignCls = align === "center" ? "justify-center" : "justify-start";
 
@@ -425,6 +541,7 @@ function ColumnHeader({
           selected={filterValues}
           onToggle={onToggleFilterValue}
           onClear={onClearFilter}
+          position={dropdownPosition}
         />
       ) : null}
     </div>
@@ -435,10 +552,12 @@ export function MappingDashboardPage() {
   const { accessToken } = useAuth();
   const [allPoints, setAllPoints] = useState<MappingPointRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [syncingActiveSources, setSyncingActiveSources] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [segment, setSegment] = useState<SegmentKey>("ALL");
+  const [componentFilter, setComponentFilter] = useState("All components");
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>(() =>
     createEmptyColumnFilters(),
   );
@@ -495,6 +614,23 @@ export function MappingDashboardPage() {
     };
   }, [accessToken]);
 
+  const componentOptions = useMemo(() => {
+    const values = new Set<string>(["All components"]);
+    for (const row of allPoints) {
+      values.add(formatComponent(row));
+    }
+    return [...values].sort((a, b) => {
+      if (a === "All components") return -1;
+      if (b === "All components") return 1;
+      return compareTextValues(a, b);
+    });
+  }, [allPoints]);
+
+  useEffect(() => {
+    if (componentOptions.includes(componentFilter)) return;
+    setComponentFilter("All components");
+  }, [componentFilter, componentOptions]);
+
   useEffect(() => {
     if (!noteTooltip) return;
 
@@ -510,6 +646,12 @@ export function MappingDashboardPage() {
   const filteredPoints = useMemo(() => {
     const searchTerm = search.toLowerCase();
     const rows = allPoints.filter((row) => {
+      if (
+        componentFilter !== "All components" &&
+        formatComponent(row) !== componentFilter
+      ) {
+        return false;
+      }
       if (segment === "MATCHED" && row.matchStatus !== "matched") {
         return false;
       }
@@ -560,7 +702,7 @@ export function MappingDashboardPage() {
     }
 
     return sorted;
-  }, [allPoints, columnFilters, search, segment, sortColumn, sortDirection]);
+  }, [allPoints, columnFilters, componentFilter, search, segment, sortColumn, sortDirection]);
 
   const visiblePoints = useMemo(
     () => filteredPoints.slice(0, visibleCount),
@@ -697,6 +839,25 @@ export function MappingDashboardPage() {
     URL.revokeObjectURL(url);
   };
 
+  const handleSyncActiveSources = async () => {
+    if (!accessToken || syncingActiveSources) return;
+
+    setSyncingActiveSources(true);
+    setMessage(null);
+    try {
+      await api.syncActiveBmsSources(accessToken);
+      const response = await api.listBmsMasterPoints(accessToken, {
+        page: 1,
+        pageSize: MASTER_POINTS_PAGE_SIZE,
+      });
+      setAllPoints(response.items);
+    } catch (error) {
+      setMessage(getErrorMessage(error));
+    } finally {
+      setSyncingActiveSources(false);
+    }
+  };
+
   const handleShowTooltip = (
     event: ReactMouseEvent<HTMLButtonElement>,
     text: string,
@@ -781,6 +942,27 @@ export function MappingDashboardPage() {
                 className="h-8 w-full rounded-md border border-slate-200 bg-white pl-7 pr-3 text-[11px] text-slate-700 placeholder-slate-400 outline-none transition-colors focus:border-slate-300 focus:ring-1 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:placeholder-slate-500 dark:focus:border-slate-600 dark:focus:ring-slate-700"
               />
             </div>
+            <ComponentFilterDropdown
+              value={componentFilter}
+              options={componentOptions}
+              onChange={(value) => {
+                setComponentFilter(value);
+                setVisibleCount(INITIAL_VISIBLE_ROWS);
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => void handleSyncActiveSources()}
+              disabled={syncingActiveSources}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-slate-100 px-3 text-[11px] font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-200/70 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-700/80"
+            >
+              {syncingActiveSources ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5" />
+              )}
+              Sync data
+            </button>
             <button
               type="button"
               onClick={handleExportCsv}
@@ -830,6 +1012,15 @@ export function MappingDashboardPage() {
               </button>
             ))}
 
+              <ComponentFilterDropdown
+                value={componentFilter}
+                options={componentOptions}
+                onChange={(value) => {
+                  setComponentFilter(value);
+                  setVisibleCount(INITIAL_VISIBLE_ROWS);
+                }}
+              />
+
               <div className="ml-auto flex shrink-0 items-center gap-2">
                 {hasColumnFilters ? (
                   <button
@@ -849,6 +1040,20 @@ export function MappingDashboardPage() {
                   <span className="mx-0.5">/</span>
                   {allPoints.length.toLocaleString()}
                 </span>
+
+                <button
+                  type="button"
+                  onClick={() => void handleSyncActiveSources()}
+                  disabled={syncingActiveSources}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-slate-100 px-3 text-[11px] font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-200/70 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-700/80"
+                >
+                  {syncingActiveSources ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  )}
+                  Sync data
+                </button>
 
                 <button
                   type="button"
@@ -957,6 +1162,7 @@ export function MappingDashboardPage() {
             onToggleFilterValue={(value) => toggleColumnFilterValue("ivivaMapping", value)}
             onClearFilter={() => clearColumnFilter("ivivaMapping")}
             align="left"
+            dropdownPosition="right"
           />
             <div className="flex items-center justify-center text-[10px] font-semibold tracking-wider text-slate-500 dark:text-slate-400">
               Review
