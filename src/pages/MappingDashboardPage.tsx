@@ -16,11 +16,30 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthProvider";
-import { ApiError, api, type MappingPointRecord } from "../services/api";
+import {
+  ApiError,
+  api,
+  type MappingPointRecord,
+  type SourceSyncRun,
+} from "../services/api";
+import {
+  invalidateMasterPointsCache,
+  loadCachedMasterPoints,
+  peekCachedMasterPoints,
+} from "../services/bmsImportDataCache";
+import {
+  getSourceSyncRunCompletionText,
+  getSourceSyncRunProgressText,
+  isSourceSyncRunTerminal,
+} from "../services/sourceSyncRun";
+import {
+  getMappingDashboardState,
+  setMappingDashboardState,
+  type MappingDashboardViewState,
+} from "../services/bmsImportPageState";
 
 const INITIAL_VISIBLE_ROWS = 60;
 const LOAD_MORE_ROWS = 60;
-const MASTER_POINTS_PAGE_SIZE = 50000;
 const TABLE_GRID_COLS =
   "grid-cols-[minmax(220px,1.8fr)_minmax(260px,2.1fr)_minmax(150px,1fr)_minmax(72px,0.55fr)_minmax(96px,0.7fr)_minmax(96px,0.7fr)_minmax(132px,0.95fr)_minmax(132px,0.95fr)_64px]";
 
@@ -50,6 +69,29 @@ type FilterColumn =
   | "metadataStatus"
   | "ivivaMapping";
 type ColumnFilters = Record<FilterColumn, Set<string>>;
+
+function deserializeColumnFilters(
+  value: MappingDashboardViewState["columnFilters"] | undefined,
+) {
+  const filters = createEmptyColumnFilters();
+  if (!value) return filters;
+
+  for (const key of Object.keys(filters) as FilterColumn[]) {
+    filters[key] = new Set<string>(value[key] || []);
+  }
+
+  return filters;
+}
+
+function serializeColumnFilters(value: ColumnFilters) {
+  return Object.entries(value).reduce(
+    (accumulator, [key, selected]) => {
+      accumulator[key] = [...selected];
+      return accumulator;
+    },
+    {} as Record<string, string[]>,
+  );
+}
 
 function getErrorMessage(error: unknown) {
   if (error instanceof ApiError) return error.message;
@@ -371,14 +413,14 @@ function SortIcon({
 
 function ColumnFilterDropdown({
   column,
-  allPoints,
+  filterRows,
   selected,
   onToggle,
   onClear,
   position = "left",
 }: {
   column: FilterColumn;
-  allPoints: MappingPointRecord[];
+  filterRows: MappingPointRecord[];
   selected: Set<string>;
   onToggle: (value: string) => void;
   onClear: () => void;
@@ -402,12 +444,12 @@ function ColumnFilterDropdown({
 
   const uniqueValues = useMemo(() => {
     const values = new Set<string>();
-    for (const row of allPoints) {
+    for (const row of filterRows) {
       const value = getFilterValue(row, column);
       if (value) values.add(value);
     }
     return [...values].sort((a, b) => compareTextValues(a, b));
-  }, [allPoints, column]);
+  }, [filterRows, column]);
 
   const filteredValues = search
     ? uniqueValues.filter((value) =>
@@ -499,7 +541,7 @@ function ColumnHeader({
   onSort,
   filterColumn,
   filterValues,
-  allPoints,
+  filterRows,
   onToggleFilterValue,
   onClearFilter,
   align = "left",
@@ -512,7 +554,7 @@ function ColumnHeader({
   onSort: (column: SortField) => void;
   filterColumn?: FilterColumn;
   filterValues?: Set<string>;
-  allPoints: MappingPointRecord[];
+  filterRows: MappingPointRecord[];
   onToggleFilterValue?: (value: string) => void;
   onClearFilter?: () => void;
   align?: "left" | "center";
@@ -537,7 +579,7 @@ function ColumnHeader({
       {filterColumn && filterValues && onToggleFilterValue && onClearFilter ? (
         <ColumnFilterDropdown
           column={filterColumn}
-          allPoints={allPoints}
+          filterRows={filterRows}
           selected={filterValues}
           onToggle={onToggleFilterValue}
           onClear={onClearFilter}
@@ -550,20 +592,30 @@ function ColumnHeader({
 
 export function MappingDashboardPage() {
   const { accessToken } = useAuth();
-  const [allPoints, setAllPoints] = useState<MappingPointRecord[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [syncingActiveSources, setSyncingActiveSources] = useState(false);
+  const savedPageState = getMappingDashboardState();
+  const [allPoints, setAllPoints] = useState<MappingPointRecord[]>(() => peekCachedMasterPoints() || []);
+  const [loading, setLoading] = useState(() => !peekCachedMasterPoints());
+  const [activeSyncRunId, setActiveSyncRunId] = useState<string | null>(null);
+  const [activeSyncRun, setActiveSyncRun] = useState<SourceSyncRun | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
-  const [segment, setSegment] = useState<SegmentKey>("ALL");
-  const [componentFilter, setComponentFilter] = useState("All components");
-  const [columnFilters, setColumnFilters] = useState<ColumnFilters>(() =>
-    createEmptyColumnFilters(),
+  const [searchInput, setSearchInput] = useState(savedPageState?.searchInput ?? "");
+  const [search, setSearch] = useState(savedPageState?.searchInput.trim() ?? "");
+  const [segment, setSegment] = useState<SegmentKey>(savedPageState?.segment ?? "ALL");
+  const [componentFilter, setComponentFilter] = useState(
+    savedPageState?.componentFilter ?? "All components",
   );
-  const [sortColumn, setSortColumn] = useState<SortField | null>("displayName");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
-  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_ROWS);
+  const [columnFilters, setColumnFilters] = useState<ColumnFilters>(() =>
+    deserializeColumnFilters(savedPageState?.columnFilters),
+  );
+  const [sortColumn, setSortColumn] = useState<SortField | null>(
+    savedPageState?.sortColumn ?? "displayName",
+  );
+  const [sortDirection, setSortDirection] = useState<SortDirection>(
+    savedPageState?.sortDirection ?? "asc",
+  );
+  const [visibleCount, setVisibleCount] = useState(
+    savedPageState?.visibleCount ?? INITIAL_VISIBLE_ROWS,
+  );
   const [noteTooltip, setNoteTooltip] = useState<{
     text: string;
     left: number;
@@ -571,6 +623,7 @@ export function MappingDashboardPage() {
     placement: "top" | "bottom";
   } | null>(null);
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
+  const restoredScrollRef = useRef(false);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -582,20 +635,40 @@ export function MappingDashboardPage() {
   }, [searchInput]);
 
   useEffect(() => {
+    setMappingDashboardState({
+      searchInput,
+      segment,
+      componentFilter,
+      sortColumn,
+      sortDirection,
+      visibleCount,
+      columnFilters: serializeColumnFilters(columnFilters),
+      tableScrollTop: tableScrollRef.current?.scrollTop ?? savedPageState?.tableScrollTop ?? 0,
+    });
+  }, [
+    columnFilters,
+    componentFilter,
+    searchInput,
+    segment,
+    sortColumn,
+    sortDirection,
+    visibleCount,
+  ]);
+
+  useEffect(() => {
     if (!accessToken) return;
 
     let cancelled = false;
 
     const loadPoints = async () => {
-      setLoading(true);
+      if (!peekCachedMasterPoints()) {
+        setLoading(true);
+      }
       setMessage(null);
       try {
-        const response = await api.listBmsMasterPoints(accessToken, {
-          page: 1,
-          pageSize: MASTER_POINTS_PAGE_SIZE,
-        });
+        const items = await loadCachedMasterPoints(accessToken);
         if (cancelled) return;
-        setAllPoints(response.items);
+        setAllPoints(items);
       } catch (error) {
         if (!cancelled) {
           setMessage(getErrorMessage(error));
@@ -614,9 +687,138 @@ export function MappingDashboardPage() {
     };
   }, [accessToken]);
 
+  const syncingActiveSources =
+    activeSyncRunId !== null && !isSourceSyncRunTerminal(activeSyncRun);
+
+  useEffect(() => {
+    if (!accessToken) {
+      setActiveSyncRunId(null);
+      setActiveSyncRun(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadLatestSyncRun = async () => {
+      try {
+        const response = await api.getLatestActiveBmsSourceSyncRun(accessToken);
+        if (cancelled || !response.run) return;
+        if (isSourceSyncRunTerminal(response.run)) return;
+
+        setActiveSyncRun(response.run);
+        setActiveSyncRunId(response.run._id);
+        setMessage(getSourceSyncRunProgressText(response.run));
+      } catch {
+        // Ignore resume failures so the dashboard still loads normally.
+      }
+    };
+
+    void loadLatestSyncRun();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken]);
+
+  useEffect(() => {
+    if (!accessToken || !activeSyncRunId) return;
+
+    let cancelled = false;
+    let timeoutId: number | undefined;
+
+    const pollSyncRun = async () => {
+      try {
+        const response = await api.getActiveBmsSourceSyncRun(accessToken, activeSyncRunId);
+        if (cancelled) return;
+
+        setActiveSyncRun(response.run);
+
+        if (isSourceSyncRunTerminal(response.run)) {
+          setActiveSyncRunId(null);
+          invalidateMasterPointsCache();
+          const items = await loadCachedMasterPoints(accessToken, true);
+          if (cancelled) return;
+          setAllPoints(items);
+          setMessage(getSourceSyncRunCompletionText(response.run));
+          return;
+        }
+
+        setMessage(getSourceSyncRunProgressText(response.run));
+        timeoutId = window.setTimeout(pollSyncRun, 3000);
+      } catch (error) {
+        if (cancelled) return;
+        setMessage(`Sync status refresh failed. ${getErrorMessage(error)}`);
+        timeoutId = window.setTimeout(pollSyncRun, 5000);
+      }
+    };
+
+    void pollSyncRun();
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [accessToken, activeSyncRunId]);
+
+  const matchesCurrentFilters = (
+    row: MappingPointRecord,
+    excludedColumn?: FilterColumn,
+    excludeComponentFilter = false,
+  ) => {
+    const searchTerm = search.toLowerCase();
+
+    if (
+      !excludeComponentFilter &&
+      componentFilter !== "All components" &&
+      formatComponent(row) !== componentFilter
+    ) {
+      return false;
+    }
+    if (segment === "MATCHED" && row.matchStatus !== "matched") {
+      return false;
+    }
+    if (segment === "METADATA_WARNING" && getWarningStatus(row) === "none") {
+      return false;
+    }
+    if (segment === "IVIVA_MISMATCH") {
+      const isMismatch =
+        row.matchStatus === "wrong_index_code" ||
+        row.matchStatus === "point_address_mismatch" ||
+        row.matchStatus === "not_found";
+      if (!isMismatch) return false;
+    }
+    if (segment === "NEEDS_REVIEW") {
+      const hasReview =
+        getWarningStatus(row) !== "none" ||
+        row.matchStatus === "wrong_index_code" ||
+        row.matchStatus === "point_address_mismatch" ||
+        row.matchStatus === "not_found";
+      if (!hasReview) return false;
+    }
+
+    if (searchTerm && !getRowSearchText(row).includes(searchTerm)) {
+      return false;
+    }
+
+    for (const [column, values] of Object.entries(columnFilters) as Array<
+      [FilterColumn, Set<string>]
+    >) {
+      if (column === excludedColumn || values.size === 0) continue;
+      const value = getFilterValue(row, column);
+      if (!values.has(value)) {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   const componentOptions = useMemo(() => {
     const values = new Set<string>(["All components"]);
     for (const row of allPoints) {
+      if (!matchesCurrentFilters(row, undefined, true)) continue;
       values.add(formatComponent(row));
     }
     return [...values].sort((a, b) => {
@@ -624,7 +826,7 @@ export function MappingDashboardPage() {
       if (b === "All components") return 1;
       return compareTextValues(a, b);
     });
-  }, [allPoints]);
+  }, [allPoints, columnFilters, componentFilter, search, segment]);
 
   useEffect(() => {
     if (componentOptions.includes(componentFilter)) return;
@@ -644,52 +846,7 @@ export function MappingDashboardPage() {
   }, [noteTooltip]);
 
   const filteredPoints = useMemo(() => {
-    const searchTerm = search.toLowerCase();
-    const rows = allPoints.filter((row) => {
-      if (
-        componentFilter !== "All components" &&
-        formatComponent(row) !== componentFilter
-      ) {
-        return false;
-      }
-      if (segment === "MATCHED" && row.matchStatus !== "matched") {
-        return false;
-      }
-      if (segment === "METADATA_WARNING" && getWarningStatus(row) === "none") {
-        return false;
-      }
-      if (segment === "IVIVA_MISMATCH") {
-        const isMismatch =
-          row.matchStatus === "wrong_index_code" ||
-          row.matchStatus === "point_address_mismatch" ||
-          row.matchStatus === "not_found";
-        if (!isMismatch) return false;
-      }
-      if (segment === "NEEDS_REVIEW") {
-        const hasReview =
-          getWarningStatus(row) !== "none" ||
-          row.matchStatus === "wrong_index_code" ||
-          row.matchStatus === "point_address_mismatch" ||
-          row.matchStatus === "not_found";
-        if (!hasReview) return false;
-      }
-
-      if (searchTerm && !getRowSearchText(row).includes(searchTerm)) {
-        return false;
-      }
-
-      for (const [column, values] of Object.entries(columnFilters) as Array<
-        [FilterColumn, Set<string>]
-      >) {
-        if (values.size === 0) continue;
-        const value = getFilterValue(row, column);
-        if (!values.has(value)) {
-          return false;
-        }
-      }
-
-      return true;
-    });
+    const rows = allPoints.filter((row) => matchesCurrentFilters(row));
 
     const sorted = [...rows];
     if (sortColumn) {
@@ -703,6 +860,27 @@ export function MappingDashboardPage() {
 
     return sorted;
   }, [allPoints, columnFilters, componentFilter, search, segment, sortColumn, sortDirection]);
+
+  const filterRowsByColumn = useMemo(() => {
+    const columns: FilterColumn[] = [
+      "indexCode",
+      "displayName",
+      "pointName",
+      "units",
+      "metadataStatus",
+      "ivivaMapping",
+    ];
+
+    return columns.reduce(
+      (accumulator, column) => {
+        accumulator[column] = allPoints.filter((row) =>
+          matchesCurrentFilters(row, column),
+        );
+        return accumulator;
+      },
+      {} as Record<FilterColumn, MappingPointRecord[]>,
+    );
+  }, [allPoints, columnFilters, componentFilter, search, segment]);
 
   const visiblePoints = useMemo(
     () => filteredPoints.slice(0, visibleCount),
@@ -723,6 +901,16 @@ export function MappingDashboardPage() {
     if (!node) return;
 
     const handleScroll = () => {
+      setMappingDashboardState({
+        searchInput,
+        segment,
+        componentFilter,
+        sortColumn,
+        sortDirection,
+        visibleCount,
+        columnFilters: serializeColumnFilters(columnFilters),
+        tableScrollTop: node.scrollTop,
+      });
       const remaining = node.scrollHeight - node.scrollTop - node.clientHeight;
       if (remaining < 200 && visibleCount < filteredPoints.length) {
         setVisibleCount((current) =>
@@ -733,7 +921,30 @@ export function MappingDashboardPage() {
 
     node.addEventListener("scroll", handleScroll);
     return () => node.removeEventListener("scroll", handleScroll);
-  }, [filteredPoints.length, visibleCount]);
+  }, [
+    columnFilters,
+    componentFilter,
+    filteredPoints.length,
+    searchInput,
+    segment,
+    sortColumn,
+    sortDirection,
+    visibleCount,
+  ]);
+
+  useEffect(() => {
+    if (loading || restoredScrollRef.current) return;
+    const node = tableScrollRef.current;
+    if (!node) return;
+
+    const nextScrollTop = savedPageState?.tableScrollTop ?? 0;
+    if (nextScrollTop > 0) {
+      window.requestAnimationFrame(() => {
+        node.scrollTop = nextScrollTop;
+      });
+    }
+    restoredScrollRef.current = true;
+  }, [loading, savedPageState?.tableScrollTop]);
 
   const summary = useMemo(() => {
     const total = allPoints.length;
@@ -842,19 +1053,13 @@ export function MappingDashboardPage() {
   const handleSyncActiveSources = async () => {
     if (!accessToken || syncingActiveSources) return;
 
-    setSyncingActiveSources(true);
-    setMessage(null);
     try {
-      await api.syncActiveBmsSources(accessToken);
-      const response = await api.listBmsMasterPoints(accessToken, {
-        page: 1,
-        pageSize: MASTER_POINTS_PAGE_SIZE,
-      });
-      setAllPoints(response.items);
+      const response = await api.syncActiveBmsSources(accessToken);
+      setActiveSyncRun(response.run);
+      setActiveSyncRunId(response.run._id);
+      setMessage(getSourceSyncRunProgressText(response.run));
     } catch (error) {
       setMessage(getErrorMessage(error));
-    } finally {
-      setSyncingActiveSources(false);
     }
   };
 
@@ -1068,6 +1273,12 @@ export function MappingDashboardPage() {
             </div>
           </div>
 
+          {message ? (
+            <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-700/50 dark:bg-slate-800/30 dark:text-slate-300">
+              {message}
+            </div>
+          ) : null}
+
           <div
             className={`grid ${TABLE_GRID_COLS} gap-3 border-b border-slate-300 bg-slate-50 px-3 py-1.5 dark:border-slate-700/50 dark:bg-slate-800/50`}
           >
@@ -1079,7 +1290,7 @@ export function MappingDashboardPage() {
             onSort={handleSort}
             filterColumn="indexCode"
             filterValues={columnFilters.indexCode}
-            allPoints={allPoints}
+            filterRows={filterRowsByColumn.indexCode}
             onToggleFilterValue={(value) => toggleColumnFilterValue("indexCode", value)}
             onClearFilter={() => clearColumnFilter("indexCode")}
           />
@@ -1091,7 +1302,7 @@ export function MappingDashboardPage() {
             onSort={handleSort}
             filterColumn="displayName"
             filterValues={columnFilters.displayName}
-            allPoints={allPoints}
+            filterRows={filterRowsByColumn.displayName}
             onToggleFilterValue={(value) => toggleColumnFilterValue("displayName", value)}
             onClearFilter={() => clearColumnFilter("displayName")}
           />
@@ -1103,7 +1314,7 @@ export function MappingDashboardPage() {
             onSort={handleSort}
             filterColumn="pointName"
             filterValues={columnFilters.pointName}
-            allPoints={allPoints}
+            filterRows={filterRowsByColumn.pointName}
             onToggleFilterValue={(value) => toggleColumnFilterValue("pointName", value)}
             onClearFilter={() => clearColumnFilter("pointName")}
           />
@@ -1115,7 +1326,7 @@ export function MappingDashboardPage() {
             onSort={handleSort}
             filterColumn="units"
             filterValues={columnFilters.units}
-            allPoints={allPoints}
+            filterRows={filterRowsByColumn.units}
             onToggleFilterValue={(value) => toggleColumnFilterValue("units", value)}
             onClearFilter={() => clearColumnFilter("units")}
             align="center"
@@ -1126,7 +1337,7 @@ export function MappingDashboardPage() {
             sortColumn={sortColumn}
             sortDirection={sortDirection}
             onSort={handleSort}
-            allPoints={allPoints}
+            filterRows={filterRowsByColumn.metadataStatus}
             align="center"
           />
           <ColumnHeader
@@ -1135,7 +1346,7 @@ export function MappingDashboardPage() {
             sortColumn={sortColumn}
             sortDirection={sortDirection}
             onSort={handleSort}
-            allPoints={allPoints}
+            filterRows={filterRowsByColumn.ivivaMapping}
             align="center"
           />
           <ColumnHeader
@@ -1146,7 +1357,7 @@ export function MappingDashboardPage() {
             onSort={handleSort}
             filterColumn="metadataStatus"
             filterValues={columnFilters.metadataStatus}
-            allPoints={allPoints}
+            filterRows={filterRowsByColumn.metadataStatus}
             onToggleFilterValue={(value) => toggleColumnFilterValue("metadataStatus", value)}
             onClearFilter={() => clearColumnFilter("metadataStatus")}
           />
@@ -1158,7 +1369,7 @@ export function MappingDashboardPage() {
             onSort={handleSort}
             filterColumn="ivivaMapping"
             filterValues={columnFilters.ivivaMapping}
-            allPoints={allPoints}
+            filterRows={filterRowsByColumn.ivivaMapping}
             onToggleFilterValue={(value) => toggleColumnFilterValue("ivivaMapping", value)}
             onClearFilter={() => clearColumnFilter("ivivaMapping")}
             align="left"
@@ -1173,10 +1384,6 @@ export function MappingDashboardPage() {
             {loading ? (
               <div className="px-4 py-12 text-center text-sm text-slate-400 dark:text-slate-500">
                 Loading mapping dashboard...
-              </div>
-            ) : message ? (
-              <div className="px-4 py-12 text-center text-sm text-rose-500 dark:text-rose-400">
-                {message}
               </div>
             ) : visiblePoints.length === 0 ? (
               <div className="px-4 py-12 text-center text-sm text-slate-400 dark:text-slate-500">

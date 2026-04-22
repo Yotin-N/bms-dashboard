@@ -10,8 +10,6 @@ import type {
 } from "../types/bms";
 import { getSocketBaseUrl } from "../services/config";
 
-const SOCKET_BASE_URL = getSocketBaseUrl();
-
 export function useBmsSocket(filter: MappingFilter = "ALL") {
   const socketRef = useRef<Socket | null>(null);
   const { accessToken, refreshSession, logout, isAuthenticated } = useAuth();
@@ -25,8 +23,9 @@ export function useBmsSocket(filter: MappingFilter = "ALL") {
     }
 
     setStatus("connecting");
+    const socketBaseUrl = getSocketBaseUrl();
 
-    const socket = io(SOCKET_BASE_URL, {
+    const socket = io(socketBaseUrl, {
       transports: ["websocket", "polling"],
       reconnection: true,
       reconnectionAttempts: Infinity,

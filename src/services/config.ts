@@ -2,6 +2,11 @@ function trimTrailingSlash(value: string) {
   return value.replace(/\/+$/, "");
 }
 
+function ensureBmsNamespace(url: string) {
+  const trimmed = trimTrailingSlash(url);
+  return /\/bms$/i.test(trimmed) ? trimmed : `${trimmed}/bms`;
+}
+
 function isLocalGateway(url: string) {
   return /https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(url) || /:3001$/i.test(url);
 }
@@ -40,12 +45,10 @@ export function getApiBaseUrl() {
 
 export function getSocketBaseUrl() {
   const hosted = getHostedGatewayUrl();
-  if (hosted) return `${hosted}/bms`;
+  if (hosted) return ensureBmsNamespace(hosted);
 
   const explicit = import.meta.env.VITE_SOCKET_BASE_URL as string | undefined;
-  if (explicit) return trimTrailingSlash(explicit);
+  if (explicit) return ensureBmsNamespace(explicit);
 
-  const gateway = getGatewayUrl();
-  if (isLocalGateway(gateway)) return gateway;
-  return `${gateway}/bms`;
+  return ensureBmsNamespace(getGatewayUrl());
 }

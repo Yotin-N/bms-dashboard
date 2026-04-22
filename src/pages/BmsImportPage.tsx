@@ -38,11 +38,35 @@ import {
   type IvivaSourceConfig,
   type MappingPointRecord,
   type ObixSourceConfig,
+  type SourceSyncRun,
 } from "../services/api";
+import {
+  invalidateAllBmsImportDataCaches,
+  invalidateIvivaSourcesCache,
+  invalidateObixSourcesCache,
+  invalidateBatchesCache,
+  loadCachedBatches,
+  loadCachedIvivaSources,
+  loadCachedMasterPoints,
+  loadCachedObixSources,
+  peekCachedBatches,
+  peekCachedIvivaSources,
+  peekCachedMasterPoints,
+  peekCachedObixSources,
+} from "../services/bmsImportDataCache";
+import {
+  getSourceSyncRunCompletionText,
+  getSourceSyncRunProgressText,
+  isSourceSyncRunTerminal,
+} from "../services/sourceSyncRun";
+import {
+  getBmsImportPageState,
+  setBmsImportPageState,
+  type BmsImportPageViewState,
+} from "../services/bmsImportPageState";
 
 const INITIAL_VISIBLE_ROWS = 60;
 const LOAD_MORE_ROWS = 60;
-const MASTER_POINTS_PAGE_SIZE = 50000;
 const MASTER_TABLE_GRID_COLS =
   "grid-cols-[minmax(260px,2.4fr)_minmax(160px,1.2fr)_minmax(130px,0.95fr)_minmax(130px,0.95fr)_minmax(130px,0.95fr)_minmax(140px,1fr)_minmax(140px,1fr)_44px]";
 
@@ -138,6 +162,29 @@ function createEmptyMasterColumnFilters(): MasterColumnFilters {
     ivivaSourceName: new Set<string>(),
     reviewNote: new Set<string>(),
   };
+}
+
+function deserializeMasterColumnFilters(
+  value: BmsImportPageViewState["columnFilters"] | undefined,
+) {
+  const filters = createEmptyMasterColumnFilters();
+  if (!value) return filters;
+
+  for (const key of Object.keys(filters) as MasterFilterColumn[]) {
+    filters[key] = new Set<string>(value[key] || []);
+  }
+
+  return filters;
+}
+
+function serializeMasterColumnFilters(value: MasterColumnFilters) {
+  return Object.entries(value).reduce(
+    (accumulator, [key, selected]) => {
+      accumulator[key] = [...selected];
+      return accumulator;
+    },
+    {} as Record<string, string[]>,
+  );
 }
 
 function getErrorMessage(error: unknown) {
@@ -608,6 +655,7 @@ function HeaderControl({
 
 export function BmsImportPage() {
   const { accessToken } = useAuth();
+  const savedPageState = getBmsImportPageState();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [sourceNameInput, setSourceNameInput] = useState("");
@@ -631,23 +679,30 @@ export function BmsImportPage() {
   const [ivivaSourceSubmitting, setIvivaSourceSubmitting] = useState(false);
   const [showSourcePassword, setShowSourcePassword] = useState(false);
   const [showIvivaPassword, setShowIvivaPassword] = useState(false);
-  const [batches, setBatches] = useState<BmsImportBatch[]>([]);
-  const [sources, setSources] = useState<ObixSourceConfig[]>([]);
-  const [ivivaSources, setIvivaSources] = useState<IvivaSourceConfig[]>([]);
-  const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
-  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
-  const [selectedIvivaSourceId, setSelectedIvivaSourceId] = useState<string | null>(null);
+  const [batches, setBatches] = useState<BmsImportBatch[]>(() => peekCachedBatches() || []);
+  const [sources, setSources] = useState<ObixSourceConfig[]>(() => peekCachedObixSources() || []);
+  const [ivivaSources, setIvivaSources] = useState<IvivaSourceConfig[]>(() => peekCachedIvivaSources() || []);
+  const [selectedBatchId, setSelectedBatchId] = useState<string | null>(
+    savedPageState?.selectedBatchId ?? null,
+  );
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(
+    savedPageState?.selectedSourceId ?? null,
+  );
+  const [selectedIvivaSourceId, setSelectedIvivaSourceId] = useState<string | null>(
+    savedPageState?.selectedIvivaSourceId ?? null,
+  );
   const [selectedBatch, setSelectedBatch] = useState<BmsImportBatch | null>(null);
-  const [allPoints, setAllPoints] = useState<MappingPointRecord[]>([]);
-  const [loadingBatches, setLoadingBatches] = useState(false);
-  const [loadingSources, setLoadingSources] = useState(false);
-  const [loadingIvivaSources, setLoadingIvivaSources] = useState(false);
-  const [loadingPoints, setLoadingPoints] = useState(false);
+  const [allPoints, setAllPoints] = useState<MappingPointRecord[]>(() => peekCachedMasterPoints() || []);
+  const [loadingBatches, setLoadingBatches] = useState(() => !peekCachedBatches());
+  const [loadingSources, setLoadingSources] = useState(() => !peekCachedObixSources());
+  const [loadingIvivaSources, setLoadingIvivaSources] = useState(() => !peekCachedIvivaSources());
+  const [loadingPoints, setLoadingPoints] = useState(() => !peekCachedMasterPoints());
   const [uploading, setUploading] = useState(false);
   const [batchSourceSubmitting, setBatchSourceSubmitting] = useState(false);
   const [discoveringSourceId, setDiscoveringSourceId] = useState<string | null>(null);
   const [syncingIvivaSourceId, setSyncingIvivaSourceId] = useState<string | null>(null);
-  const [syncingActiveSources, setSyncingActiveSources] = useState(false);
+  const [activeSyncRunId, setActiveSyncRunId] = useState<string | null>(null);
+  const [activeSyncRun, setActiveSyncRun] = useState<SourceSyncRun | null>(null);
   const [deletingBatchId, setDeletingBatchId] = useState<string | null>(null);
   const [deletingSourceId, setDeletingSourceId] = useState<string | null>(null);
   const [deletingIvivaSourceId, setDeletingIvivaSourceId] = useState<string | null>(null);
@@ -658,15 +713,19 @@ export function BmsImportPage() {
   const [togglingBatchId, setTogglingBatchId] = useState<string | null>(null);
   const [togglingSourceId, setTogglingSourceId] = useState<string | null>(null);
   const [togglingIvivaSourceId, setTogglingIvivaSourceId] = useState<string | null>(null);
-  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_ROWS);
+  const [visibleCount, setVisibleCount] = useState(
+    savedPageState?.visibleCount ?? INITIAL_VISIBLE_ROWS,
+  );
   const [totalPoints, setTotalPoints] = useState(0);
   const [refreshNonce, setRefreshNonce] = useState(0);
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState(savedPageState?.searchInput ?? "");
+  const [search, setSearch] = useState(savedPageState?.searchInput.trim() ?? "");
   const [columnFilters, setColumnFilters] = useState<MasterColumnFilters>(
-    () => createEmptyMasterColumnFilters(),
+    () => deserializeMasterColumnFilters(savedPageState?.columnFilters),
   );
-  const [metadataSegment, setMetadataSegment] = useState<MetadataSegment>("ALL");
+  const [metadataSegment, setMetadataSegment] = useState<MetadataSegment>(
+    savedPageState?.metadataSegment ?? "ALL",
+  );
   const [message, setMessage] = useState<{
     type: "success" | "error" | "loading";
     text: string;
@@ -677,8 +736,12 @@ export function BmsImportPage() {
     top: number;
     placement: "top" | "bottom";
   } | null>(null);
-  const [sortColumn, setSortColumn] = useState<MasterSortField | null>("displayName");
-  const [sortDirection, setSortDirection] = useState<MasterSortDirection>("asc");
+  const [sortColumn, setSortColumn] = useState<MasterSortField | null>(
+    savedPageState?.sortColumn ?? "displayName",
+  );
+  const [sortDirection, setSortDirection] = useState<MasterSortDirection>(
+    savedPageState?.sortDirection ?? "asc",
+  );
   const [openSummaryMenu, setOpenSummaryMenu] = useState<
     "batch" | "source" | "iviva" | null
   >(null);
@@ -689,6 +752,7 @@ export function BmsImportPage() {
   const initialSourceSelectionDoneRef = useRef(false);
   const initialIvivaSourceSelectionDoneRef = useRef(false);
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
+  const restoredScrollRef = useRef(false);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -766,6 +830,31 @@ export function BmsImportPage() {
     };
   }, [noteTooltip]);
 
+  useEffect(() => {
+    setBmsImportPageState({
+      selectedBatchId,
+      selectedSourceId,
+      selectedIvivaSourceId,
+      searchInput,
+      metadataSegment,
+      sortColumn,
+      sortDirection,
+      visibleCount,
+      columnFilters: serializeMasterColumnFilters(columnFilters),
+      tableScrollTop: tableScrollRef.current?.scrollTop ?? savedPageState?.tableScrollTop ?? 0,
+    });
+  }, [
+    columnFilters,
+    metadataSegment,
+    searchInput,
+    selectedBatchId,
+    selectedIvivaSourceId,
+    selectedSourceId,
+    sortColumn,
+    sortDirection,
+    visibleCount,
+  ]);
+
   const obixSourceNameById = useMemo(
     () => new Map(sources.map((source) => [source._id, source.name])),
     [sources],
@@ -776,23 +865,22 @@ export function BmsImportPage() {
     [ivivaSources],
   );
 
-  const loadBatches = async (preferredBatchId?: string | null) => {
+  const loadBatches = async (preferredBatchId?: string | null, force = false) => {
     if (!accessToken) return;
 
-    setLoadingBatches(true);
+    if (force || !peekCachedBatches()) {
+      setLoadingBatches(true);
+    }
     try {
-      const response = await api.listBmsImportBatches(accessToken, {
-        page: 1,
-        pageSize: 20,
-      });
-      setBatches(response.items);
+      const items = await loadCachedBatches(accessToken, force);
+      setBatches(items);
 
       const nextSelectedBatchId =
         preferredBatchId !== undefined
           ? preferredBatchId
           : selectedBatchId ||
             (!initialBatchSelectionDoneRef.current
-              ? response.items[0]?._id ?? null
+              ? items[0]?._id ?? null
               : null);
 
       if (nextSelectedBatchId) {
@@ -808,23 +896,22 @@ export function BmsImportPage() {
     }
   };
 
-  const loadSources = async (preferredSourceId?: string | null) => {
+  const loadSources = async (preferredSourceId?: string | null, force = false) => {
     if (!accessToken) return;
 
-    setLoadingSources(true);
+    if (force || !peekCachedObixSources()) {
+      setLoadingSources(true);
+    }
     try {
-      const response = await api.listObixSourceConfigs(accessToken, {
-        page: 1,
-        pageSize: 30,
-      });
-      setSources(response.items);
+      const items = await loadCachedObixSources(accessToken, force);
+      setSources(items);
 
       const nextSelectedSourceId =
         preferredSourceId !== undefined
           ? preferredSourceId
           : selectedSourceId ||
             (!initialSourceSelectionDoneRef.current
-              ? response.items[0]?._id ?? null
+              ? items[0]?._id ?? null
               : null);
 
       if (nextSelectedSourceId) {
@@ -840,23 +927,22 @@ export function BmsImportPage() {
     }
   };
 
-  const loadIvivaSources = async (preferredSourceId?: string | null) => {
+  const loadIvivaSources = async (preferredSourceId?: string | null, force = false) => {
     if (!accessToken) return;
 
-    setLoadingIvivaSources(true);
+    if (force || !peekCachedIvivaSources()) {
+      setLoadingIvivaSources(true);
+    }
     try {
-      const response = await api.listIvivaSourceConfigs(accessToken, {
-        page: 1,
-        pageSize: 30,
-      });
-      setIvivaSources(response.items);
+      const items = await loadCachedIvivaSources(accessToken, force);
+      setIvivaSources(items);
 
       const nextSelectedSourceId =
         preferredSourceId !== undefined
           ? preferredSourceId
           : selectedIvivaSourceId ||
             (!initialIvivaSourceSelectionDoneRef.current
-              ? response.items[0]?._id ?? null
+              ? items[0]?._id ?? null
               : null);
 
       if (nextSelectedSourceId) {
@@ -914,18 +1000,18 @@ export function BmsImportPage() {
     }
 
     let cancelled = false;
+    const force = refreshNonce > 0;
 
     const loadMasterPoints = async () => {
-      setLoadingPoints(true);
+      if (force || !peekCachedMasterPoints()) {
+        setLoadingPoints(true);
+      }
       try {
-        const response = await api.listBmsMasterPoints(accessToken, {
-          page: 1,
-          pageSize: MASTER_POINTS_PAGE_SIZE,
-        });
+        const items = await loadCachedMasterPoints(accessToken, force);
 
         if (cancelled) return;
 
-        setAllPoints(response.items);
+        setAllPoints(items);
       } catch (error) {
         if (!cancelled) {
           setMessage({ type: "error", text: getErrorMessage(error) });
@@ -945,6 +1031,103 @@ export function BmsImportPage() {
   }, [
     accessToken,
     refreshNonce,
+  ]);
+
+  const syncingActiveSources =
+    activeSyncRunId !== null && !isSourceSyncRunTerminal(activeSyncRun);
+
+  useEffect(() => {
+    if (!accessToken) {
+      setActiveSyncRunId(null);
+      setActiveSyncRun(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadLatestSyncRun = async () => {
+      try {
+        const response = await api.getLatestActiveBmsSourceSyncRun(accessToken);
+        if (cancelled || !response.run) return;
+        if (isSourceSyncRunTerminal(response.run)) return;
+
+        setActiveSyncRun(response.run);
+        setActiveSyncRunId(response.run._id);
+        setMessage({
+          type: "loading",
+          text: getSourceSyncRunProgressText(response.run),
+        });
+      } catch {
+        // Ignore passive resume errors; page can still work without an active sync badge.
+      }
+    };
+
+    void loadLatestSyncRun();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken]);
+
+  useEffect(() => {
+    if (!accessToken || !activeSyncRunId) return;
+
+    let cancelled = false;
+    let timeoutId: number | undefined;
+
+    const pollSyncRun = async () => {
+      try {
+        const response = await api.getActiveBmsSourceSyncRun(accessToken, activeSyncRunId);
+        if (cancelled) return;
+
+        setActiveSyncRun(response.run);
+
+        if (isSourceSyncRunTerminal(response.run)) {
+          setActiveSyncRunId(null);
+          invalidateAllBmsImportDataCaches();
+          await Promise.all([
+            loadSources(selectedSourceId, true),
+            loadIvivaSources(selectedIvivaSourceId, true),
+            selectedBatchId ? loadBatches(selectedBatchId, true) : loadBatches(undefined, true),
+          ]);
+          setRefreshNonce((current) => current + 1);
+          setMessage({
+            type: response.run.status === "failed" ? "error" : "success",
+            text: getSourceSyncRunCompletionText(response.run),
+          });
+          return;
+        }
+
+        setMessage({
+          type: "loading",
+          text: getSourceSyncRunProgressText(response.run),
+        });
+
+        timeoutId = window.setTimeout(pollSyncRun, 3000);
+      } catch (error) {
+        if (cancelled) return;
+        setMessage({
+          type: "error",
+          text: `Sync status refresh failed. ${getErrorMessage(error)}`,
+        });
+        timeoutId = window.setTimeout(pollSyncRun, 5000);
+      }
+    };
+
+    void pollSyncRun();
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [
+    accessToken,
+    activeSyncRunId,
+    selectedBatchId,
+    selectedIvivaSourceId,
+    selectedSourceId,
   ]);
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -996,80 +1179,51 @@ export function BmsImportPage() {
     return Object.values(columnFilters).some((set) => set.size > 0);
   }, [columnFilters]);
 
-  const columnFilterOptions = useMemo(() => {
-    const columns: MasterFilterColumn[] = [
-      "displayName",
-      "bacnetKey",
-      "mappingStatus",
-      "matchStatus",
-      "sourceBatchFileName",
-      "obixSourceName",
-      "ivivaSourceName",
-      "reviewNote",
-    ];
+  const matchesCurrentFilters = (
+    row: MappingPointRecord,
+    excludedColumn?: MasterFilterColumn,
+  ) => {
+    const searchTerm = search.toLowerCase();
+    if (metadataSegment === "WARNING" && getWarningStatus(row) === "none") {
+      return false;
+    }
+    if (metadataSegment === "MATCHED" && row.mappingStatus !== "matched") {
+      return false;
+    }
+    if (metadataSegment === "IMPORT_ONLY" && row.mappingStatus !== "import_only") {
+      return false;
+    }
+    if (metadataSegment === "OBIX_ONLY" && row.mappingStatus !== "obix_only") {
+      return false;
+    }
 
-    return columns.reduce(
-      (accumulator, column) => {
-        const values = new Set<string>();
-        for (const row of allPoints) {
-          values.add(
-            getColumnFilterValue(
-              row,
-              column,
-              obixSourceNameById,
-              ivivaSourceNameById,
-            ),
-          );
-        }
-        accumulator[column] = [...values]
-          .sort((a, b) => compareTextValues(a, b))
-          .map((value) => ({ label: value, value }));
-        return accumulator;
-      },
-      {} as Record<MasterFilterColumn, Array<{ label: string; value: string }>>,
-    );
-  }, [allPoints, obixSourceNameById, ivivaSourceNameById]);
+    if (
+      searchTerm &&
+      !getRowSearchText(row, obixSourceNameById, ivivaSourceNameById).includes(searchTerm)
+    ) {
+      return false;
+    }
+
+    for (const [column, selectedValues] of Object.entries(columnFilters) as Array<
+      [MasterFilterColumn, Set<string>]
+    >) {
+      if (column === excludedColumn || selectedValues.size === 0) continue;
+      const value = getColumnFilterValue(
+        row,
+        column,
+        obixSourceNameById,
+        ivivaSourceNameById,
+      );
+      if (!selectedValues.has(value)) {
+        return false;
+      }
+    }
+
+    return true;
+  };
 
   const filteredPoints = useMemo(() => {
-    const searchTerm = search.toLowerCase();
-    const rows = allPoints.filter((row) => {
-      if (metadataSegment === "WARNING" && getWarningStatus(row) === "none") {
-        return false;
-      }
-      if (metadataSegment === "MATCHED" && row.mappingStatus !== "matched") {
-        return false;
-      }
-      if (metadataSegment === "IMPORT_ONLY" && row.mappingStatus !== "import_only") {
-        return false;
-      }
-      if (metadataSegment === "OBIX_ONLY" && row.mappingStatus !== "obix_only") {
-        return false;
-      }
-
-      if (
-        searchTerm &&
-        !getRowSearchText(row, obixSourceNameById, ivivaSourceNameById).includes(searchTerm)
-      ) {
-        return false;
-      }
-
-      for (const [column, selectedValues] of Object.entries(columnFilters) as Array<
-        [MasterFilterColumn, Set<string>]
-      >) {
-        if (selectedValues.size === 0) continue;
-        const value = getColumnFilterValue(
-          row,
-          column,
-          obixSourceNameById,
-          ivivaSourceNameById,
-        );
-        if (!selectedValues.has(value)) {
-          return false;
-        }
-      }
-
-      return true;
-    });
+    const rows = allPoints.filter((row) => matchesCurrentFilters(row));
 
     const sortedRows = [...rows];
     if (sortColumn) {
@@ -1103,6 +1257,68 @@ export function BmsImportPage() {
     sortDirection,
   ]);
 
+  const filterRowsByColumn = useMemo(() => {
+    const columns: MasterFilterColumn[] = [
+      "displayName",
+      "bacnetKey",
+      "mappingStatus",
+      "matchStatus",
+      "sourceBatchFileName",
+      "obixSourceName",
+      "ivivaSourceName",
+      "reviewNote",
+    ];
+
+    return columns.reduce(
+      (accumulator, column) => {
+        accumulator[column] = allPoints.filter((row) => matchesCurrentFilters(row, column));
+        return accumulator;
+      },
+      {} as Record<MasterFilterColumn, MappingPointRecord[]>,
+    );
+  }, [
+    allPoints,
+    columnFilters,
+    ivivaSourceNameById,
+    metadataSegment,
+    obixSourceNameById,
+    search,
+  ]);
+
+  const columnFilterOptions = useMemo(() => {
+    const columns: MasterFilterColumn[] = [
+      "displayName",
+      "bacnetKey",
+      "mappingStatus",
+      "matchStatus",
+      "sourceBatchFileName",
+      "obixSourceName",
+      "ivivaSourceName",
+      "reviewNote",
+    ];
+
+    return columns.reduce(
+      (accumulator, column) => {
+        const values = new Set<string>();
+        for (const row of filterRowsByColumn[column]) {
+          values.add(
+            getColumnFilterValue(
+              row,
+              column,
+              obixSourceNameById,
+              ivivaSourceNameById,
+            ),
+          );
+        }
+        accumulator[column] = [...values]
+          .sort((a, b) => compareTextValues(a, b))
+          .map((value) => ({ label: value, value }));
+        return accumulator;
+      },
+      {} as Record<MasterFilterColumn, Array<{ label: string; value: string }>>,
+    );
+  }, [filterRowsByColumn, obixSourceNameById, ivivaSourceNameById]);
+
   const points = useMemo(
     () => filteredPoints.slice(0, visibleCount),
     [filteredPoints, visibleCount],
@@ -1123,6 +1339,18 @@ export function BmsImportPage() {
     if (!node) return;
 
     const handleScroll = () => {
+      setBmsImportPageState({
+        selectedBatchId,
+        selectedSourceId,
+        selectedIvivaSourceId,
+        searchInput,
+        metadataSegment,
+        sortColumn,
+        sortDirection,
+        visibleCount,
+        columnFilters: serializeMasterColumnFilters(columnFilters),
+        tableScrollTop: node.scrollTop,
+      });
       const remaining = node.scrollHeight - node.scrollTop - node.clientHeight;
       if (remaining < 200 && visibleCount < filteredPoints.length) {
         setVisibleCount((current) =>
@@ -1133,7 +1361,32 @@ export function BmsImportPage() {
 
     node.addEventListener("scroll", handleScroll);
     return () => node.removeEventListener("scroll", handleScroll);
-  }, [filteredPoints.length, visibleCount]);
+  }, [
+    columnFilters,
+    filteredPoints.length,
+    metadataSegment,
+    searchInput,
+    selectedBatchId,
+    selectedIvivaSourceId,
+    selectedSourceId,
+    sortColumn,
+    sortDirection,
+    visibleCount,
+  ]);
+
+  useEffect(() => {
+    if (loadingPoints || restoredScrollRef.current) return;
+    const node = tableScrollRef.current;
+    if (!node) return;
+
+    const nextScrollTop = savedPageState?.tableScrollTop ?? 0;
+    if (nextScrollTop > 0) {
+      window.requestAnimationFrame(() => {
+        node.scrollTop = nextScrollTop;
+      });
+    }
+    restoredScrollRef.current = true;
+  }, [loadingPoints, savedPageState?.tableScrollTop]);
 
   const resetUploadForm = () => {
     setSelectedFile(null);
@@ -1272,7 +1525,8 @@ export function BmsImportPage() {
       setVisibleCount(INITIAL_VISIBLE_ROWS);
       resetUploadForm();
       setShowUploadModal(false);
-      await loadBatches(response.batch._id);
+      invalidateBatchesCache();
+      await loadBatches(response.batch._id, true);
       setSelectedBatchId(response.batch._id);
       setMessage({ type: "success", text: response.message });
     } catch (error) {
@@ -1293,11 +1547,11 @@ export function BmsImportPage() {
         sourceName: sourceNameInput.trim() || null,
       });
 
-      await loadBatches(editingBatchSource._id);
+      invalidateBatchesCache();
+      await loadBatches(editingBatchSource._id, true);
       if (selectedBatchId === editingBatchSource._id) {
         setSelectedBatch(response.batch);
       }
-      setRefreshNonce((current) => current + 1);
       setShowBatchSourceModal(false);
       setEditingBatchSource(null);
       setSourceNameInput("");
@@ -1396,7 +1650,8 @@ export function BmsImportPage() {
         ? await api.updateObixSourceConfig(accessToken, editingSource._id, payload)
         : await api.createObixSourceConfig(accessToken, payload);
 
-      await loadSources(response.config._id);
+      invalidateObixSourcesCache();
+      await loadSources(response.config._id, true);
       setSelectedSourceId(response.config._id);
       closeSourceModal();
       setMessage({
@@ -1438,7 +1693,8 @@ export function BmsImportPage() {
         ? await api.updateIvivaSourceConfig(accessToken, editingIvivaSource._id, payload)
         : await api.createIvivaSourceConfig(accessToken, payload);
 
-      await loadIvivaSources(response.config._id);
+      invalidateIvivaSourcesCache();
+      await loadIvivaSources(response.config._id, true);
       setSelectedIvivaSourceId(response.config._id);
       closeIvivaSourceModal();
       setMessage({
@@ -1464,11 +1720,11 @@ export function BmsImportPage() {
     });
     try {
       const response = await api.discoverObixSource(accessToken, source._id);
+      invalidateObixSourcesCache();
       await Promise.all([
-        loadSources(source._id),
-        selectedBatchId ? loadBatches(selectedBatchId) : Promise.resolve(),
+        loadSources(source._id, true),
+        selectedBatchId ? loadBatches(selectedBatchId, true) : Promise.resolve(),
       ]);
-      setRefreshNonce((current) => current + 1);
       setMessage({
         type: "success",
         text: `${response.message} • ${response.summary.created} created, ${response.summary.updated} updated.`,
@@ -1490,8 +1746,8 @@ export function BmsImportPage() {
     });
     try {
       const response = await api.syncIvivaSource(accessToken, source._id);
-      await loadIvivaSources(source._id);
-      setRefreshNonce((current) => current + 1);
+      invalidateIvivaSourcesCache();
+      await loadIvivaSources(source._id, true);
       setMessage({
         type: "success",
         text: `${response.message} • ${response.summary.synced} rows loaded.`,
@@ -1506,28 +1762,16 @@ export function BmsImportPage() {
   const handleSyncActiveSources = async () => {
     if (!accessToken || syncingActiveSources) return;
 
-    setSyncingActiveSources(true);
-    setMessage({
-      type: "loading",
-      text: "Syncing all active oBIX and IVIVA sources...",
-    });
-
     try {
       const response = await api.syncActiveBmsSources(accessToken);
-      await Promise.all([
-        loadSources(selectedSourceId),
-        loadIvivaSources(selectedIvivaSourceId),
-        selectedBatchId ? loadBatches(selectedBatchId) : loadBatches(),
-      ]);
-      setRefreshNonce((current) => current + 1);
+      setActiveSyncRun(response.run);
+      setActiveSyncRunId(response.run._id);
       setMessage({
-        type: "success",
-        text: `${response.message} • ${response.summary.obix.summary.sourceCount} oBIX source(s), ${response.summary.iviva.summary.sourceCount} IVIVA source(s).`,
+        type: "loading",
+        text: getSourceSyncRunProgressText(response.run),
       });
     } catch (error) {
       setMessage({ type: "error", text: getErrorMessage(error) });
-    } finally {
-      setSyncingActiveSources(false);
     }
   };
 
@@ -1535,17 +1779,20 @@ export function BmsImportPage() {
     if (!accessToken || togglingBatchId) return;
 
     setTogglingBatchId(batch._id);
-    setMessage(null);
+    setMessage({
+      type: "loading",
+      text: `${batch.isActive ? "Deactivating" : "Activating"} batch "${getBatchDisplayName(batch)}"...`,
+    });
     try {
       const response = await api.updateBmsImportBatch(accessToken, batch._id, {
         isActive: !batch.isActive,
       });
 
-      await loadBatches(selectedBatchId);
+      invalidateBatchesCache();
+      await loadBatches(selectedBatchId, true);
       if (selectedBatchId === batch._id) {
         setSelectedBatch(response.batch);
       }
-      setRefreshNonce((current) => current + 1);
 
       setMessage({
         type: "success",
@@ -1564,14 +1811,17 @@ export function BmsImportPage() {
     if (!accessToken || togglingSourceId) return;
 
     setTogglingSourceId(source._id);
-    setMessage(null);
+    setMessage({
+      type: "loading",
+      text: `${source.enabled ? "Deactivating" : "Activating"} oBIX source "${source.name}"...`,
+    });
     try {
       const response = await api.updateObixSourceConfig(accessToken, source._id, {
         enabled: !source.enabled,
       });
 
-      await loadSources(selectedSourceId);
-      setRefreshNonce((current) => current + 1);
+      invalidateObixSourcesCache();
+      await loadSources(selectedSourceId, true);
       setMessage({
         type: "success",
         text: `oBIX source "${response.config.name}" is now ${
@@ -1589,14 +1839,17 @@ export function BmsImportPage() {
     if (!accessToken || togglingIvivaSourceId) return;
 
     setTogglingIvivaSourceId(source._id);
-    setMessage(null);
+    setMessage({
+      type: "loading",
+      text: `${source.enabled ? "Deactivating" : "Activating"} IVIVA source "${source.name}"...`,
+    });
     try {
       const response = await api.updateIvivaSourceConfig(accessToken, source._id, {
         enabled: !source.enabled,
       });
 
-      await loadIvivaSources(selectedIvivaSourceId);
-      setRefreshNonce((current) => current + 1);
+      invalidateIvivaSourcesCache();
+      await loadIvivaSources(selectedIvivaSourceId, true);
       setMessage({
         type: "success",
         text: `IVIVA source "${response.config.name}" is now ${
@@ -1628,8 +1881,8 @@ export function BmsImportPage() {
       setSelectedBatchId(nextBatchId ?? null);
       setVisibleCount(INITIAL_VISIBLE_ROWS);
 
-      await loadBatches(nextBatchId);
-      setRefreshNonce((current) => current + 1);
+      invalidateBatchesCache();
+      await loadBatches(nextBatchId, true);
       setMessage({
         type: "success",
         text: `${response.message} • ${response.deletedRows} rows removed.`,
@@ -1664,8 +1917,8 @@ export function BmsImportPage() {
         selectedSourceId === deleteSourceTarget._id ? (remaining[0]?._id ?? null) : selectedSourceId;
 
       setSelectedSourceId(nextSourceId ?? null);
-      await loadSources(nextSourceId);
-      setRefreshNonce((current) => current + 1);
+      invalidateObixSourcesCache();
+      await loadSources(nextSourceId, true);
       closeDeleteSourceModal();
       setMessage({
         type: "success",
@@ -1703,8 +1956,8 @@ export function BmsImportPage() {
           : selectedIvivaSourceId;
 
       setSelectedIvivaSourceId(nextSourceId ?? null);
-      await loadIvivaSources(nextSourceId);
-      setRefreshNonce((current) => current + 1);
+      invalidateIvivaSourcesCache();
+      await loadIvivaSources(nextSourceId, true);
       closeDeleteIvivaSourceModal();
       setMessage({
         type: "success",
@@ -1883,8 +2136,18 @@ export function BmsImportPage() {
                           }}
                           className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
                         >
-                          <RefreshCw className="h-3.5 w-3.5" />
-                          {selectedBatch.isActive ? "Deactivate batch" : "Activate batch"}
+                          {togglingBatchId === selectedBatch._id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-3.5 w-3.5" />
+                          )}
+                          {togglingBatchId === selectedBatch._id
+                            ? selectedBatch.isActive
+                              ? "Deactivating batch..."
+                              : "Activating batch..."
+                            : selectedBatch.isActive
+                              ? "Deactivate batch"
+                              : "Activate batch"}
                         </button>
                       ) : null}
                     </div>
@@ -1970,12 +2233,22 @@ export function BmsImportPage() {
                             onClick={() => {
                               setOpenSummaryMenu(null);
                               void handleToggleSourceEnabled(selectedSource);
-                            }}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
-                          >
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                        >
+                          {togglingSourceId === selectedSource._id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
                             <RefreshCw className="h-3.5 w-3.5" />
-                            {selectedSource.enabled ? "Deactivate source" : "Activate source"}
-                          </button>
+                          )}
+                          {togglingSourceId === selectedSource._id
+                            ? selectedSource.enabled
+                              ? "Deactivating source..."
+                              : "Activating source..."
+                            : selectedSource.enabled
+                              ? "Deactivate source"
+                              : "Activate source"}
+                        </button>
                           <button
                             type="button"
                             onClick={() => {
@@ -2084,12 +2357,22 @@ export function BmsImportPage() {
                             onClick={() => {
                               setOpenSummaryMenu(null);
                               void handleToggleIvivaSourceEnabled(selectedIvivaSource);
-                            }}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
-                          >
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                        >
+                          {togglingIvivaSourceId === selectedIvivaSource._id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
                             <RefreshCw className="h-3.5 w-3.5" />
-                            {selectedIvivaSource.enabled ? "Deactivate source" : "Activate source"}
-                          </button>
+                          )}
+                          {togglingIvivaSourceId === selectedIvivaSource._id
+                            ? selectedIvivaSource.enabled
+                              ? "Deactivating source..."
+                              : "Activating source..."
+                            : selectedIvivaSource.enabled
+                              ? "Deactivate source"
+                              : "Activate source"}
+                        </button>
                           <button
                             type="button"
                             disabled={syncingIvivaSourceId === selectedIvivaSource._id}
@@ -2848,9 +3131,15 @@ export function BmsImportPage() {
             disabled={Boolean(togglingBatchId) || Boolean(deletingBatchId)}
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
+            {togglingBatchId === selectorRowMenuBatch._id ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5" />
+            )}
             {togglingBatchId === selectorRowMenuBatch._id
-              ? "Updating..."
+              ? selectorRowMenuBatch.isActive
+                ? "Deactivating source..."
+                : "Activating source..."
               : selectorRowMenuBatch.isActive
                 ? "Deactivate source"
                 : "Activate source"}
@@ -2899,8 +3188,18 @@ export function BmsImportPage() {
             disabled={Boolean(togglingSourceId) || Boolean(deletingSourceId)}
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
-            {selectorRowMenuSource.enabled ? "Deactivate source" : "Activate source"}
+            {togglingSourceId === selectorRowMenuSource._id ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5" />
+            )}
+            {togglingSourceId === selectorRowMenuSource._id
+              ? selectorRowMenuSource.enabled
+                ? "Deactivating source..."
+                : "Activating source..."
+              : selectorRowMenuSource.enabled
+                ? "Deactivate source"
+                : "Activate source"}
           </button>
           <button
             type="button"
@@ -2976,8 +3275,18 @@ export function BmsImportPage() {
             disabled={Boolean(togglingIvivaSourceId) || Boolean(deletingIvivaSourceId)}
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
-            {selectorRowMenuIvivaSource.enabled ? "Deactivate source" : "Activate source"}
+            {togglingIvivaSourceId === selectorRowMenuIvivaSource._id ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5" />
+            )}
+            {togglingIvivaSourceId === selectorRowMenuIvivaSource._id
+              ? selectorRowMenuIvivaSource.enabled
+                ? "Deactivating source..."
+                : "Activating source..."
+              : selectorRowMenuIvivaSource.enabled
+                ? "Deactivate source"
+                : "Activate source"}
           </button>
           <button
             type="button"

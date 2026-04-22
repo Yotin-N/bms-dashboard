@@ -379,6 +379,61 @@ export interface SyncIvivaSourceResponse {
   };
 }
 
+export interface SourceSyncRunError {
+  stage: string;
+  sourceType: "obix" | "iviva" | "master" | null;
+  sourceId: string | null;
+  sourceName: string | null;
+  message: string;
+  occurredAt: string | null;
+}
+
+export interface SourceSyncRun {
+  _id: string;
+  status: "queued" | "running" | "completed" | "partial_success" | "failed";
+  currentStage:
+    | "queued"
+    | "discover_obix"
+    | "sync_iviva"
+    | "upsert_master"
+    | "completed"
+    | "failed";
+  triggeredBy: {
+    userId: string | null;
+    email: string;
+  } | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  obixSummary: {
+    sourceCount: number;
+    completed: number;
+    failed: number;
+    discovered: number;
+    created: number;
+    updated: number;
+    skipped: number;
+  };
+  ivivaSummary: {
+    sourceCount: number;
+    completed: number;
+    failed: number;
+    synced: number;
+    bacnetCandidates: number;
+    assetIds: number;
+  };
+  masterSummary: {
+    started: boolean;
+    completed: boolean;
+    totalRows: number;
+    activeBatchCount: number;
+    activeObixSourceCount: number;
+    activeIvivaSourceCount: number;
+  };
+  errors: SourceSyncRunError[];
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
 export interface DiscoverObixSourceResponse {
   message: string;
   config: ObixSourceConfig | null;
@@ -414,29 +469,15 @@ export interface ImportPointSourceRecord extends MappingPointRecord {
 
 export interface SyncActiveSourcesResponse {
   message: string;
-  summary: {
-    obix: {
-      message: string;
-      summary: {
-        sourceCount: number;
-        discovered: number;
-        created: number;
-        updated: number;
-        skipped: number;
-        appliedToMaster: boolean;
-      };
-    };
-    iviva: {
-      message: string;
-      summary: {
-        sourceCount: number;
-        synced: number;
-        bacnetCandidates: number;
-        assetIds: number;
-        appliedToMaster: boolean;
-      };
-    };
-  };
+  run: SourceSyncRun;
+}
+
+export interface SourceSyncRunResponse {
+  run: SourceSyncRun;
+}
+
+export interface LatestSourceSyncRunResponse {
+  run: SourceSyncRun | null;
 }
 
 export interface ImportPointSourcesResponse {
@@ -1148,6 +1189,18 @@ export const api = {
   syncActiveBmsSources(accessToken: string) {
     return request<SyncActiveSourcesResponse>("/bms-import/sync-data", {
       method: "POST",
+      accessToken,
+    });
+  },
+
+  getActiveBmsSourceSyncRun(accessToken: string, runId: string) {
+    return request<SourceSyncRunResponse>(`/bms-import/sync-data/${runId}`, {
+      accessToken,
+    });
+  },
+
+  getLatestActiveBmsSourceSyncRun(accessToken: string) {
+    return request<LatestSourceSyncRunResponse>("/bms-import/sync-data/latest", {
       accessToken,
     });
   },
