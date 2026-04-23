@@ -69,6 +69,24 @@ type FilterColumn =
   | "metadataStatus"
   | "ivivaMapping";
 type ColumnFilters = Record<FilterColumn, Set<string>>;
+type SummaryCategoryKey =
+  | "currentTotal"
+  | "usable"
+  | "notFound"
+  | "wrongIndexCode"
+  | "pointAddressMismatch"
+  | "metadataWarning"
+  | "importOnly"
+  | "obixOnly"
+  | "other";
+
+type SummaryCategory = {
+  key: SummaryCategoryKey;
+  label: string;
+  count: number;
+  percentage: number;
+  colorClass: string;
+};
 
 function deserializeColumnFilters(
   value: MappingDashboardViewState["columnFilters"] | undefined,
@@ -104,6 +122,14 @@ function compareTextValues(a: string, b: string) {
     numeric: true,
     sensitivity: "base",
   });
+}
+
+function formatPercent(value: number) {
+  return `${value.toFixed(1)}%`;
+}
+
+function formatWholePercent(value: number) {
+  return `${Math.round(value)}%`;
 }
 
 function escapeCsvValue(value: string | null | undefined) {
@@ -947,20 +973,115 @@ export function MappingDashboardPage() {
   }, [loading, savedPageState?.tableScrollTop]);
 
   const summary = useMemo(() => {
-    const total = allPoints.length;
-    const metadataMatched = allPoints.filter((row) => row.mappingStatus === "matched").length;
-    const ivivaMatched = allPoints.filter((row) => row.matchStatus === "matched").length;
-    const needsReview = allPoints.filter((row) => {
-      return (
-        getWarningStatus(row) !== "none" ||
-        row.matchStatus === "wrong_index_code" ||
-        row.matchStatus === "point_address_mismatch" ||
-        row.matchStatus === "not_found"
-      );
-    }).length;
+    const counts: Record<SummaryCategoryKey, number> = {
+      currentTotal: 0,
+      usable: 0,
+      notFound: 0,
+      wrongIndexCode: 0,
+      pointAddressMismatch: 0,
+      metadataWarning: 0,
+      importOnly: 0,
+      obixOnly: 0,
+      other: 0,
+    };
 
-    return { total, metadataMatched, ivivaMatched, needsReview };
-  }, [allPoints]);
+    for (const row of filteredPoints) {
+      const hasWarning = getWarningStatus(row) !== "none";
+      const isUsable =
+        row.mappingStatus === "matched" &&
+        row.matchStatus === "matched" &&
+        !hasWarning;
+
+      if (isUsable) {
+        counts.usable += 1;
+        continue;
+      }
+
+      if (row.matchStatus === "not_found") {
+        counts.notFound += 1;
+        continue;
+      }
+
+      if (row.matchStatus === "wrong_index_code") {
+        counts.wrongIndexCode += 1;
+        continue;
+      }
+
+      if (row.matchStatus === "point_address_mismatch") {
+        counts.pointAddressMismatch += 1;
+        continue;
+      }
+
+      if (row.mappingStatus === "import_only") {
+        counts.importOnly += 1;
+        continue;
+      }
+
+      if (row.mappingStatus === "obix_only") {
+        counts.obixOnly += 1;
+        continue;
+      }
+
+      if (hasWarning) {
+        counts.metadataWarning += 1;
+        continue;
+      }
+
+      counts.other += 1;
+    }
+
+    const total = filteredPoints.length;
+    const usable = counts.usable;
+    const focusCount = Math.max(total - usable, 0);
+
+    const categories: SummaryCategory[] = [
+      {
+        key: "currentTotal",
+        label: "All current point",
+        count: total,
+        percentage: total ? 100 : 0,
+        colorClass: "text-slate-700 dark:text-slate-100",
+      },
+      {
+        key: "notFound",
+        label: "Not found",
+        count: counts.notFound,
+        percentage: total ? (counts.notFound / total) * 100 : 0,
+        colorClass: "text-rose-500 dark:text-rose-400",
+      },
+      {
+        key: "pointAddressMismatch",
+        label: "Point mismatch",
+        count: counts.pointAddressMismatch,
+        percentage: total ? (counts.pointAddressMismatch / total) * 100 : 0,
+        colorClass: "text-sky-500 dark:text-sky-400",
+      },
+      {
+        key: "wrongIndexCode",
+        label: "Wrong index code",
+        count: counts.wrongIndexCode,
+        percentage: total ? (counts.wrongIndexCode / total) * 100 : 0,
+        colorClass: "text-amber-500 dark:text-amber-400",
+      },
+      {
+        key: "importOnly",
+        label: "Import only",
+        count: counts.importOnly,
+        percentage: total ? (counts.importOnly / total) * 100 : 0,
+        colorClass: "text-blue-500 dark:text-blue-400",
+      },
+    ];
+
+    return {
+      total,
+      usable,
+      focusCount,
+      usablePercentage: total ? (usable / total) * 100 : 0,
+      focusPercentage: total ? (focusCount / total) * 100 : 0,
+      overviewCards: categories,
+      isFilteredScope: filteredPoints.length !== allPoints.length,
+    };
+  }, [allPoints.length, filteredPoints]);
 
   const totalActiveFilters = useMemo(
     () =>
@@ -1088,44 +1209,114 @@ export function MappingDashboardPage() {
   return (
     <div className="flex flex-1 flex-col overflow-y-auto bg-slate-50 px-4 py-5 dark:bg-slate-950">
       <div className="mx-auto flex min-h-0 w-full max-w-[1560px] flex-1 flex-col gap-4">
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          {
-            label: "Master Points",
-            value: summary.total,
-            helper: "Rows in current master projection",
-          },
-          {
-            label: "Metadata Matched",
-            value: summary.metadataMatched,
-            helper: "Import rows linked with oBIX",
-          },
-          {
-            label: "IVIVA Matched",
-            value: summary.ivivaMatched,
-            helper: "Rows matched against IVIVA",
-          },
-          {
-            label: "Needs Review",
-            value: summary.needsReview,
-            helper: "Warnings or mapping mismatches",
-          },
-        ].map((card) => (
-          <div
-            key={card.label}
-            className="rounded-xl border border-slate-200 bg-white px-5 py-4 hover:bg-slate-50 dark:border-slate-700/50 dark:bg-slate-900/50 dark:hover:bg-slate-800/60"
-          >
-            <div className="text-[10px] font-medium tracking-[0.16em] text-slate-400 dark:text-slate-500">
-              {card.label}
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700/50 dark:bg-slate-900/60">
+          <div className="flex flex-col xl:h-[115px] xl:flex-row xl:items-stretch">
+            <div className="flex shrink-0 items-center justify-center border-b border-slate-200 px-5 py-4 dark:border-slate-700/50 xl:h-full xl:w-[176px] xl:border-b-0 xl:border-r xl:py-0">
+              <div className="relative h-24 w-24 xl:-translate-y-1">
+                <svg
+                  className="block h-24 w-24 -rotate-90 transform overflow-visible"
+                  viewBox="0 0 100 100"
+                >
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="40"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="8"
+                    className="text-slate-200 dark:text-slate-700"
+                  />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="40"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                    strokeDasharray={`${summary.usablePercentage * 2.51} ${100 * 2.51}`}
+                    className="text-teal-500 dark:text-teal-400"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <div className="text-[1.42rem] font-semibold leading-none tracking-tight tabular-nums text-slate-900 dark:text-slate-100">
+                    {formatWholePercent(summary.usablePercentage)}
+                  </div>
+                  <div className="mt-0.5 text-[7px] font-medium uppercase tracking-[0.16em] text-teal-500 dark:text-teal-400">
+                    usable
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
-              {card.value.toLocaleString()}
+
+            <div className="flex min-w-0 flex-col justify-center gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-700/50 xl:h-full xl:w-[400px] xl:flex-none xl:self-stretch xl:justify-center xl:border-b-0 xl:border-r xl:py-0">
+              <div className="w-full space-y-2.5 xl:-translate-y-1">
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                  <span className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                    {summary.total.toLocaleString()}
+                  </span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    {summary.isFilteredScope ? "current scope" : "all master points"}
+                  </span>
+                </div>
+
+                <div className="space-y-2.5">
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700/80">
+                    <div
+                      className="h-full rounded-full bg-teal-500 dark:bg-teal-400"
+                      style={{ width: `${summary.usablePercentage}%` }}
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px] leading-none">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="font-medium text-teal-500 dark:text-teal-400">
+                        Usable
+                      </span>
+                      <span className="font-semibold text-slate-900 dark:text-slate-100">
+                        {summary.usable.toLocaleString()}
+                      </span>
+                      <span className="text-slate-500 dark:text-slate-400">
+                        {formatPercent(summary.usablePercentage)}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="font-medium text-rose-500 dark:text-rose-400">
+                        Focus now
+                      </span>
+                      <span className="font-semibold text-slate-900 dark:text-slate-100">
+                        {summary.focusCount.toLocaleString()}
+                      </span>
+                      <span className="text-slate-500 dark:text-slate-400">
+                        {formatPercent(summary.focusPercentage)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
-              {card.helper}
+
+            <div className="min-w-0 flex-1 xl:flex xl:h-full xl:items-stretch">
+              <div className="grid divide-y divide-slate-200 dark:divide-slate-700/50 sm:grid-cols-2 sm:divide-y-0 sm:divide-x xl:flex xl:h-full xl:flex-1 xl:items-stretch xl:divide-x xl:divide-y-0">
+                {summary.overviewCards.map((category) => (
+                  <div
+                    key={category.key}
+                    className="flex flex-1 flex-col items-center justify-center px-3 py-3 text-center xl:h-full xl:py-0"
+                  >
+                    <div className="flex flex-col items-center xl:-translate-y-1">
+                      <div
+                        className={`text-[1.95rem] font-semibold leading-none tracking-tight ${category.colorClass}`}
+                      >
+                        {category.count.toLocaleString()}
+                      </div>
+                      <div className="mt-1.5 max-w-[112px] text-[11px] font-medium leading-tight text-slate-600 dark:text-slate-300">
+                        {category.label}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        ))}
         </section>
 
         <section className="flex min-h-[calc(100vh-220px)] flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700/50 dark:bg-slate-900/50">
