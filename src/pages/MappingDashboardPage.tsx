@@ -248,7 +248,7 @@ function formatUnits(row: MappingPointRecord) {
 }
 
 function formatIndexCode(row: MappingPointRecord) {
-  return row.indexCodeCandidate || "—";
+  return row.ivivaAssetId || row.indexCodeCandidate || "—";
 }
 
 function formatComponent(row: MappingPointRecord) {
