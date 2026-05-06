@@ -9,6 +9,7 @@ import {
   PanelLeftOpen,
   Building2,
   FileSpreadsheet,
+  ReceiptText,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useTheme } from "../../hooks/useTheme";
@@ -18,29 +19,45 @@ interface NavItem {
   label: string;
   icon: React.ReactNode;
   to: string;
-  adminOnly?: boolean;
+  allowedRoles?: Array<"admin" | "editor" | "bmo" | "viewer">;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", icon: <LayoutDashboard className="w-5 h-5" />, to: "/" },
-  { label: "Equipment", icon: <Box className="w-5 h-5" />, to: "/equipment" },
+  {
+    label: "Dashboard",
+    icon: <LayoutDashboard className="w-5 h-5" />,
+    to: "/",
+    allowedRoles: ["admin", "editor", "bmo", "viewer"],
+  },
+  {
+    label: "Equipment",
+    icon: <Box className="w-5 h-5" />,
+    to: "/equipment",
+    allowedRoles: ["admin", "editor", "bmo", "viewer"],
+  },
+  {
+    label: "Meter Billing",
+    icon: <ReceiptText className="w-5 h-5" />,
+    to: "/meter-billing",
+    allowedRoles: ["admin", "bmo"],
+  },
   {
     label: "BMS Import",
     icon: <FileSpreadsheet className="w-5 h-5" />,
     to: "/bms-import",
-    adminOnly: true,
+    allowedRoles: ["admin"],
   },
   {
     label: "Mapping Dashboard",
     icon: <Database className="w-5 h-5" />,
     to: "/mapping-dashboard",
-    adminOnly: true,
+    allowedRoles: ["admin"],
   },
   {
     label: "Settings",
     icon: <Settings className="w-5 h-5" />,
     to: "/settings",
-    adminOnly: true,
+    allowedRoles: ["admin"],
   },
 ];
 
@@ -54,7 +71,9 @@ interface SidebarProps {
 export function Sidebar({ collapsed, mobileOpen, onToggle, onMobileClose }: SidebarProps) {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
-  const navItems = NAV_ITEMS.filter((item) => !item.adminOnly || user?.role === "admin");
+  const navItems = NAV_ITEMS.filter(
+    (item) => !item.allowedRoles || (user?.role ? item.allowedRoles.includes(user.role) : false),
+  );
   const shellWidthClass = collapsed ? "w-60 lg:w-16" : "w-60";
   const titleClass = collapsed
     ? "max-w-[140px] opacity-100 lg:max-w-0 lg:opacity-0"

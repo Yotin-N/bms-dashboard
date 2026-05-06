@@ -101,7 +101,7 @@ export function PointResourceModal({
   onDeleteRemark: (remark: RemarkLogRecord) => void;
   onUpdateRemark: (remark: RemarkLogRecord, message: string) => Promise<void>;
   currentUserId: string | null;
-  currentUserRole: "admin" | "editor" | "viewer" | null;
+  currentUserRole: "admin" | "editor" | "bmo" | "viewer" | null;
   onClose: () => void;
 }) {
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -234,7 +234,7 @@ export function PointResourceModal({
   const canDeleteAttachment = (attachment: AttachmentRecord) =>
     currentUserRole === "admin" || attachment.uploadedBy.userId === currentUserId;
   const canManageResources =
-    currentUserRole === "admin" || currentUserRole === "editor";
+    currentUserRole === "admin" || currentUserRole === "editor" || currentUserRole === "bmo";
 
   const canDeleteRemark = (remark: RemarkLogRecord) =>
     currentUserRole === "admin" || remark.createdBy.userId === currentUserId;
@@ -611,14 +611,14 @@ export function PointResourceActionsCell({
   remarkCount: number;
   attachmentCount: number;
   isUploading: boolean;
-  currentUserRole: "admin" | "editor" | "viewer" | null;
+  currentUserRole: "admin" | "editor" | "bmo" | "viewer" | null;
   onOpenLogs: () => void;
   onUploadFile: (file: File) => void;
   onOpenTrend?: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const canManageResources =
-    currentUserRole === "admin" || currentUserRole === "editor";
+    currentUserRole === "admin" || currentUserRole === "editor" || currentUserRole === "bmo";
   const baseButtonClass =
     "relative flex items-center justify-center rounded border transition-colors disabled:cursor-not-allowed disabled:opacity-60 h-8 w-8 sm:h-5 sm:w-5";
 

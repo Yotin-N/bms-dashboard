@@ -8,7 +8,7 @@ export interface StoredAuthSession {
     lastName: string;
     company: string;
     phoneNumber: string;
-    role: "admin" | "editor" | "viewer";
+    role: "admin" | "editor" | "bmo" | "viewer";
     isActive: boolean;
     isPasswordSet: boolean;
     lastLoginAt: string | null;

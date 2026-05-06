@@ -8,7 +8,7 @@ export function ProtectedRoute({
   allowedRoles,
 }: {
   children: React.ReactNode;
-  allowedRoles?: Array<"admin" | "editor" | "viewer">;
+  allowedRoles?: Array<"admin" | "editor" | "bmo" | "viewer">;
 }) {
   const location = useLocation();
   const { status, isAuthenticated, user } = useAuth();

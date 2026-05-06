@@ -23,7 +23,7 @@ export interface AuthUser {
   lastName: string;
   company: string;
   phoneNumber: string;
-  role: "admin" | "editor" | "viewer";
+  role: "admin" | "editor" | "bmo" | "viewer";
   isActive: boolean;
   isPasswordSet: boolean;
   lastLoginAt: string | null;
@@ -55,7 +55,7 @@ export interface CreateUserPayload {
   lastName: string;
   company: string;
   phoneNumber: string;
-  role: "admin" | "editor" | "viewer";
+  role: "admin" | "editor" | "bmo" | "viewer";
 }
 
 export interface UpdateUserPayload {
@@ -63,7 +63,7 @@ export interface UpdateUserPayload {
   lastName?: string;
   company?: string;
   phoneNumber?: string;
-  role?: "admin" | "editor" | "viewer";
+  role?: "admin" | "editor" | "bmo" | "viewer";
 }
 
 export interface MagicLinkConsumeResponse {
@@ -120,7 +120,7 @@ export interface AttachmentRecord {
     firstName: string;
     lastName: string;
     company: string;
-    role: "admin" | "editor" | "viewer";
+    role: "admin" | "editor" | "bmo" | "viewer";
   };
 }
 
@@ -138,7 +138,7 @@ export interface RemarkLogRecord {
     firstName: string;
     lastName: string;
     company: string;
-    role: "admin" | "editor" | "viewer";
+    role: "admin" | "editor" | "bmo" | "viewer";
   };
   attachmentIds: AttachmentRecord[];
 }
@@ -483,6 +483,37 @@ export interface LatestSourceSyncRunResponse {
 export interface ImportPointSourcesResponse {
   displayName: string;
   items: ImportPointSourceRecord[];
+}
+
+export interface MeterBillingReportRow {
+  CompanyCode: string | null;
+  Contract: string | null;
+  ContractName: string | null;
+  BusinessPartner: string | null;
+  ReportFrom: string | null;
+  ReportTo: string | null;
+  SalesType: string | null;
+  RepRuleNo: string | null;
+  NameOfTerm: string | null;
+  SalesInUnits: number;
+  SalesInUnits_M1: number;
+  SalesInUnits_M2: number;
+  ZeroSales: string | null;
+  StatistQuantSales: number;
+  ReportedOn: string | null;
+  PreviousReadingUnit: number;
+  MeterName: string | null;
+}
+
+export interface MeterBillingReportResponse {
+  reportMonth: string;
+  loadedAt: string;
+  rowCount: number;
+  items: MeterBillingReportRow[];
+}
+
+export interface MeterBillingReportMonthOptionsResponse {
+  items: string[];
 }
 
 type RequestOptions = RequestInit & {
@@ -836,6 +867,19 @@ export const api = {
       method: "POST",
       accessToken,
       body: JSON.stringify({ points }),
+    });
+  },
+
+  getMeterBillingReport(accessToken: string, reportMonth: string) {
+    const params = new URLSearchParams({ reportMonth });
+    return request<MeterBillingReportResponse>(`/reports/meter-billing?${params.toString()}`, {
+      accessToken,
+    });
+  },
+
+  getMeterBillingReportMonthOptions(accessToken: string) {
+    return request<MeterBillingReportMonthOptionsResponse>("/reports/meter-billing/month-options", {
+      accessToken,
     });
   },
 

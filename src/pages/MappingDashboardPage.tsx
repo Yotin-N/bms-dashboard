@@ -248,7 +248,7 @@ function formatUnits(row: MappingPointRecord) {
 }
 
 function formatIndexCode(row: MappingPointRecord) {
-  return row.ivivaAssetId || row.indexCodeCandidate || "—";
+  return row.ivivaAssetId || "—";
 }
 
 function formatComponent(row: MappingPointRecord) {
@@ -1135,6 +1135,9 @@ export function MappingDashboardPage() {
       "Index Code",
       "Display Name",
       "Point Name",
+      "Point Controller ID",
+      "BACnet Object Type",
+      "Instance Number",
       "Units",
       "BMS",
       "IVIVA",
@@ -1148,6 +1151,9 @@ export function MappingDashboardPage() {
         formatIndexCode(row),
         row.displayName || "—",
         formatPointName(row),
+        row.controllerId || "—",
+        row.objectType || row.objectTypeRaw || "—",
+        row.instanceNumber || "—",
         formatUnits(row),
         formatBmsValue(row),
         formatIvivaValue(row),

@@ -394,7 +394,7 @@ function PointMobileCard({
   remarkCount: number;
   attachmentCount: number;
   isUploading: boolean;
-  currentUserRole: "admin" | "editor" | "viewer" | null;
+  currentUserRole: "admin" | "editor" | "bmo" | "viewer" | null;
   showOperationalValues: boolean;
   onOpenLogs: () => void;
   onUploadFile: (file: File) => void;

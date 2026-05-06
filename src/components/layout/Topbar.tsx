@@ -33,6 +33,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   const isSettingsPage = location.pathname === "/settings";
   const isBmsImportPage = location.pathname === "/bms-import";
   const isMappingDashboardPage = location.pathname === "/mapping-dashboard";
+  const isMeterBillingPage = location.pathname === "/meter-billing";
 
   const statusConfig = {
     connected: { dot: "bg-emerald-500", label: "Connected" },
@@ -114,7 +115,10 @@ export function Topbar({ onMenuClick }: TopbarProps) {
       {/* Right: Status + Last update + User */}
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Connection Status - Hidden on Settings and BMS Import pages */}
-        {!isSettingsPage && !isBmsImportPage && !isMappingDashboardPage && (
+        {!isSettingsPage &&
+          !isBmsImportPage &&
+          !isMappingDashboardPage &&
+          !isMeterBillingPage && (
           <div className="hidden items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 dark:bg-slate-800 sm:flex">
             <span className={`w-2 h-2 rounded-full ${statusConfig.dot}`} />
             <span className="text-xs font-medium text-slate-600 dark:text-slate-300">

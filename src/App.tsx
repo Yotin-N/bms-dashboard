@@ -10,6 +10,7 @@ import { SetPasswordPage } from "./pages/SetPasswordPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { BmsImportPage } from "./pages/BmsImportPage";
 import { MappingDashboardPage } from "./pages/MappingDashboardPage";
+import { MeterBillingReportPage } from "./pages/MeterBillingReportPage";
 
 function ProtectedShell() {
   return (
@@ -28,9 +29,38 @@ function App() {
       <Route path="/set-password" element={<SetPasswordPage />} />
       <Route element={<ProtectedShell />}>
         <Route path="/" element={<Dashboard />} />
-        <Route path="/equipment" element={<EquipmentPage />} />
-        <Route path="/equipment/:indexCode" element={<AssetDetailPage />} />
-        <Route path="/trend/:displayName" element={<TrendPage />} />
+        <Route
+          path="/equipment"
+          element={
+            <ProtectedRoute allowedRoles={["admin", "editor", "bmo", "viewer"]}>
+              <EquipmentPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/equipment/:indexCode"
+          element={
+            <ProtectedRoute allowedRoles={["admin", "editor", "bmo", "viewer"]}>
+              <AssetDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trend/:displayName"
+          element={
+            <ProtectedRoute allowedRoles={["admin", "editor", "bmo", "viewer"]}>
+              <TrendPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/meter-billing"
+          element={
+            <ProtectedRoute allowedRoles={["admin", "bmo"]}>
+              <MeterBillingReportPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/bms-import"
           element={
